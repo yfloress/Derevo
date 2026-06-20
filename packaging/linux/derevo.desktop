@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Derevo
+GenericName=Habit Tracker
+Comment=A fast, native habit tracker
+Comment[es]=Un rastreador de hábitos rápido y nativo
+Exec=derevo
+Icon=derevo
+Terminal=false
+Categories=Utility;Office;ProjectManagement;
+Keywords=habits;habit;tracker;routine;goals;streak;productivity;
+StartupNotify=true
+StartupWMClass=Derevo
