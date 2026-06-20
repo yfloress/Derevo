@@ -436,7 +436,7 @@
 
   .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
   .tab-bar { margin-bottom: 20px; }
-  h2 { font-size: 1.3rem; letter-spacing: 0.2em; color: var(--text-primary); margin: 0; }
+  h2 { font-size: 1.5rem; letter-spacing: 0.05em; color: var(--text-primary); margin: 0; font-family: 'Oranienbaum', serif; font-weight: 400; }
 
   .header-actions { display: flex; align-items: center; gap: 14px; }
   .month-nav { display: flex; align-items: center; gap: 12px; }
