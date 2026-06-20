@@ -22,6 +22,7 @@
   import * as habitsApi from '../lib/api/habits'
   import RadarChart from '../components/charts/RadarChart.svelte'
   import WeekdayChart from '../components/charts/WeekdayChart.svelte'
+  import MonthlyProgressChart from '../components/charts/MonthlyProgressChart.svelte'
   import HabitFormModal from '../components/habits/HabitFormModal.svelte'
   import HabitHeatmap from '../components/habits/HabitHeatmap.svelte'
   import HabitRewardsPanel from '../components/habits/HabitRewardsPanel.svelte'
@@ -177,6 +178,10 @@
   const now = new Date()
   const viewingCurrentMonth = $derived(now.getFullYear() === year && now.getMonth() + 1 === month)
   const todayDay = $derived(viewingCurrentMonth ? now.getDate() : -1)
+  // For the progress chart: plot up to today this month, the full month otherwise.
+  const progressLastDay = $derived(
+    viewingCurrentMonth ? todayDay : (habitsData?.days_in_month ?? 0)
+  )
 
   function weekdayOf(day: number): number {
     return new Date(year, month - 1, day).getDay()
@@ -286,6 +291,14 @@
         </div>
       </div>
 
+      <!-- Monthly progress line -->
+      {#if progressLastDay > 0}
+        <div class="chart-card progress-card">
+          <h3>{i18n.t('habits-monthly-progress', 'Monthly Progress')}</h3>
+          <MonthlyProgressChart habits={habitsData.habits} lastDay={progressLastDay} />
+        </div>
+      {/if}
+
       <!-- Activity Heatmap -->
       {#if heatmap}
         <HabitHeatmap
@@ -349,7 +362,6 @@
           {/if}
           <div class="analytics-card">
             <p class="insight">{analytics.weekly_summary}</p>
-            <p class="insight">{analytics.insight}</p>
           </div>
         </div>
       {/if}
@@ -585,6 +597,7 @@
     opacity: 0.5;
   }
   .chart-card h3 { font-size: 0.8rem; color: var(--text-tertiary); text-transform: uppercase; margin: 0 0 8px; }
+  .progress-card { margin-bottom: 24px; }
   .analytics-card {
     position: relative;
     background: var(--card-bg);

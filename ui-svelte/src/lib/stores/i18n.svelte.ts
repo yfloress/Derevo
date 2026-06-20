@@ -30,6 +30,8 @@ const translations: Record<string, Record<string, string>> = {
     'habits-new-habit': 'New Habit',
     'habits-habit-col': 'Habit',
     'habits-activity-heatmap': 'Activity Heatmap',
+    'habits-monthly-progress': 'Monthly Progress',
+    'habits-perfect-day': 'Perfect day',
     'habits-current-streak': 'Current Streak',
     'habits-best-streak': 'Best Streak',
     'habits-completion': 'Completion',
@@ -137,6 +139,8 @@ const translations: Record<string, Record<string, string>> = {
     'habits-new-habit': 'Nuevo Hábito',
     'habits-habit-col': 'Hábito',
     'habits-activity-heatmap': 'Mapa de Actividad',
+    'habits-monthly-progress': 'Progreso Mensual',
+    'habits-perfect-day': 'Día perfecto',
     'habits-current-streak': 'Racha Actual',
     'habits-best-streak': 'Mejor Racha',
     'habits-completion': 'Finalización',
@@ -234,7 +238,7 @@ const translations: Record<string, Record<string, string>> = {
 export const i18n = {
   get lang() { return currentLang },
   setLanguage(lang: string) { currentLang = lang },
-  t(key: string): string {
-    return translations[currentLang]?.[key] ?? translations.en?.[key] ?? key
+  t(key: string, fallback?: string): string {
+    return translations[currentLang]?.[key] ?? translations.en?.[key] ?? fallback ?? key
   },
 }
