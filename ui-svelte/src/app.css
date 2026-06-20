@@ -15,8 +15,8 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/agpl-3.0.html>. */
 
 :root {
-  --bg-base: #09090f;
-  --bg-gradient: linear-gradient(135deg, #09090f 0%, #0e0b14 40%, #12101a 100%);
+  --bg-base: #060a08;
+  --bg-gradient: linear-gradient(135deg, #060a08 0%, #0a100c 40%, #0c130f 100%);
   --glass: rgba(255, 255, 255, 0.035);
   --glass-hover: rgba(255, 255, 255, 0.06);
   --glass-active: rgba(255, 255, 255, 0.08);
@@ -28,9 +28,9 @@
   --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
   --glass-shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.45);
   --glass-glow: 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
-  --accent: #a855f7;
-  --accent-glow: rgba(168, 85, 247, 0.15);
-  --accent-hover: #c084fc;
+  --accent: #34d399;
+  --accent-glow: rgba(52, 211, 153, 0.18);
+  --accent-hover: #6ee7b7;
   --success: #4ade80;
   --danger: #f87171;
   --warning: #fbbf24;
@@ -45,62 +45,62 @@
   --scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
   --select-bg: rgba(0, 0, 0, 0.25);
   --select-bg-hover: rgba(0, 0, 0, 0.35);
-  --option-bg: #1a1a1a;
+  --option-bg: #10160f;
   --danger-bg: rgba(248, 113, 113, 0.08);
   --danger-border: rgba(248, 113, 113, 0.15);
-  --modal-bg: linear-gradient(145deg, rgba(26, 26, 31, 0.9) 0%, rgba(20, 20, 24, 0.85) 50%, rgba(17, 17, 21, 0.8) 100%);
+  --modal-bg: linear-gradient(145deg, rgba(16, 26, 20, 0.9) 0%, rgba(12, 20, 15, 0.85) 50%, rgba(9, 15, 12, 0.8) 100%);
   --modal-border: rgba(255, 255, 255, 0.1);
   --modal-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  --accent-bg: rgba(168, 85, 247, 0.2);
-  --accent-border: rgba(168, 85, 247, 0.3);
-  --text-on-accent: #ffffff;
+  --accent-bg: rgba(52, 211, 153, 0.18);
+  --accent-border: rgba(52, 211, 153, 0.3);
+  --text-on-accent: #06140d;
   --card-bg:
-    radial-gradient(circle at 0% 0%, rgba(168, 85, 247, 0.06) 0%, transparent 55%),
+    radial-gradient(circle at 0% 0%, rgba(52, 211, 153, 0.06) 0%, transparent 55%),
     linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
-  --card-bg-solid: #0e0c15;
+  --card-bg-solid: #0a110d;
   --card-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  --card-accent-line: linear-gradient(90deg, transparent 0%, rgba(168, 85, 247, 0.35) 30%, rgba(168, 85, 247, 0.35) 70%, transparent 100%);
+  --card-accent-line: linear-gradient(90deg, transparent 0%, rgba(52, 211, 153, 0.4) 30%, rgba(52, 211, 153, 0.4) 70%, transparent 100%);
 }
 
 .light-mode {
-  --bg-base: #f8f7fd;
+  --bg-base: #f3faf6;
   --glass: rgba(255, 255, 255, 0.65);
-  --glass-hover: rgba(147, 51, 234, 0.06);
-  --glass-active: rgba(147, 51, 234, 0.1);
+  --glass-hover: rgba(5, 150, 105, 0.06);
+  --glass-active: rgba(5, 150, 105, 0.1);
   --glass-elevated: rgba(255, 255, 255, 0.8);
-  --glass-border: rgba(147, 51, 234, 0.1);
-  --glass-border-hover: rgba(147, 51, 234, 0.18);
-  --glass-shadow: 0 4px 20px rgba(100, 60, 180, 0.06);
-  --glass-shadow-lg: 0 8px 32px rgba(100, 60, 180, 0.1);
-  --glass-glow: 0 0 0 1px rgba(147, 51, 234, 0.06) inset;
-  --accent: #8b5cf6;
-  --accent-glow: rgba(139, 92, 246, 0.15);
-  --accent-hover: #7c3aed;
+  --glass-border: rgba(5, 150, 105, 0.12);
+  --glass-border-hover: rgba(5, 150, 105, 0.2);
+  --glass-shadow: 0 4px 20px rgba(15, 110, 80, 0.06);
+  --glass-shadow-lg: 0 8px 32px rgba(15, 110, 80, 0.1);
+  --glass-glow: 0 0 0 1px rgba(5, 150, 105, 0.06) inset;
+  --accent: #059669;
+  --accent-glow: rgba(5, 150, 105, 0.15);
+  --accent-hover: #047857;
   --success: #16a34a;
   --danger: #dc2626;
   --warning: #d97706;
-  --text-primary: #1e1b2e;
-  --text-secondary: #4c4665;
-  --text-tertiary: #8882a0;
-  --scrollbar-thumb: rgba(139, 92, 246, 0.2);
-  --scrollbar-thumb-hover: rgba(139, 92, 246, 0.38);
+  --text-primary: #0f1f18;
+  --text-secondary: #3c5448;
+  --text-tertiary: #7a8f84;
+  --scrollbar-thumb: rgba(5, 150, 105, 0.2);
+  --scrollbar-thumb-hover: rgba(5, 150, 105, 0.38);
   --select-bg: rgba(255, 255, 255, 0.7);
   --select-bg-hover: rgba(255, 255, 255, 0.9);
   --option-bg: #ffffff;
   --danger-bg: rgba(220, 38, 38, 0.08);
   --danger-border: rgba(220, 38, 38, 0.15);
-  --modal-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.97) 0%, rgba(250, 248, 255, 0.95) 50%, rgba(245, 243, 255, 0.92) 100%);
-  --modal-border: rgba(139, 92, 246, 0.1);
-  --modal-shadow: 0 8px 32px rgba(100, 60, 180, 0.1);
-  --accent-bg: rgba(139, 92, 246, 0.1);
-  --accent-border: rgba(139, 92, 246, 0.2);
+  --modal-bg: linear-gradient(145deg, rgba(255, 255, 255, 0.97) 0%, rgba(245, 251, 248, 0.95) 50%, rgba(240, 250, 245, 0.92) 100%);
+  --modal-border: rgba(5, 150, 105, 0.12);
+  --modal-shadow: 0 8px 32px rgba(15, 110, 80, 0.1);
+  --accent-bg: rgba(5, 150, 105, 0.1);
+  --accent-border: rgba(5, 150, 105, 0.25);
   --text-on-accent: #ffffff;
   --card-bg:
-    radial-gradient(circle at 0% 0%, rgba(139, 92, 246, 0.06) 0%, transparent 55%),
+    radial-gradient(circle at 0% 0%, rgba(5, 150, 105, 0.06) 0%, transparent 55%),
     linear-gradient(145deg, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.6) 100%);
-  --card-bg-solid: #f2f0fc;
-  --card-shadow: 0 4px 20px rgba(100, 60, 180, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  --card-accent-line: linear-gradient(90deg, transparent 0%, rgba(139, 92, 246, 0.4) 30%, rgba(139, 92, 246, 0.4) 70%, transparent 100%);
+  --card-bg-solid: #edf7f1;
+  --card-shadow: 0 4px 20px rgba(15, 110, 80, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --card-accent-line: linear-gradient(90deg, transparent 0%, rgba(5, 150, 105, 0.4) 30%, rgba(5, 150, 105, 0.4) 70%, transparent 100%);
 }
 
 body {
@@ -245,7 +245,7 @@ select option {
 .tab-bar button.active {
   color: var(--text-primary);
   font-weight: 600;
-  background: linear-gradient(135deg, var(--accent-bg) 0%, rgba(168,85,247,0.08) 100%);
+  background: linear-gradient(135deg, var(--accent-bg) 0%, rgba(52,211,153,0.08) 100%);
   border-color: var(--accent-border);
   box-shadow:
     0 0 0 1px var(--accent-border) inset,

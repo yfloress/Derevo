@@ -41,8 +41,8 @@
   })
 
   let option = $derived.by(() => {
-    const accent = pick('#a855f7', L.accent)
-    const perfect = pick('#4ade80', L.positive)
+    const accent = pick('#34d399', L.accent)
+    const perfect = pick('#fbbf24', '#d97706')
     return {
       backgroundColor: 'transparent',
       grid: { left: 38, right: 16, top: 18, bottom: 24 },
@@ -88,14 +88,14 @@
             width: 2.5,
             color: accent,
             shadowBlur: 10,
-            shadowColor: pick('rgba(168,85,247,0.45)', 'rgba(139,92,246,0.3)'),
+            shadowColor: pick('rgba(52,211,153,0.45)', 'rgba(5,150,105,0.3)'),
           },
           areaStyle: {
             color: {
               type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
               colorStops: [
-                { offset: 0, color: pick('rgba(168,85,247,0.35)', 'rgba(139,92,246,0.26)') },
-                { offset: 1, color: pick('rgba(168,85,247,0.02)', 'rgba(139,92,246,0.02)') },
+                { offset: 0, color: pick('rgba(52,211,153,0.35)', 'rgba(5,150,105,0.26)') },
+                { offset: 1, color: pick('rgba(52,211,153,0.02)', 'rgba(5,150,105,0.02)') },
               ],
             },
           },
@@ -112,7 +112,7 @@
             borderColor: pick('#0a0a0a', '#ffffff'),
             borderWidth: 1.5,
             shadowBlur: 12,
-            shadowColor: pick('rgba(74,222,128,0.6)', 'rgba(22,163,74,0.4)'),
+            shadowColor: pick('rgba(251,191,36,0.6)', 'rgba(217,119,6,0.4)'),
           },
           tooltip: { show: false },
           z: 5,

@@ -22,7 +22,7 @@
   import * as habitsApi from '../../lib/api/habits'
   import type { HabitDto } from '../../lib/types/habits'
 
-  const colors = ['#a855f7', '#4ade80', '#f87171', '#fbbf24', '#a78bfa', '#f472b6', '#34d399', '#fb923c']
+  const colors = ['#34d399', '#22c55e', '#4ade80', '#fbbf24', '#fb923c', '#f87171', '#f472b6', '#22d3ee']
 
   interface Props {
     show: boolean
@@ -35,7 +35,7 @@
 
   let habitName = $state('')
   let habitDescription = $state('')
-  let habitColor = $state('#a855f7')
+  let habitColor = $state('#34d399')
   let habitCategory = $state('general')
 
   $effect(() => {
@@ -50,7 +50,7 @@
       } else {
         habitName = ''
         habitDescription = ''
-        habitColor = '#a855f7'
+        habitColor = '#34d399'
         habitCategory = 'general'
       }
     }

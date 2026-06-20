@@ -66,7 +66,7 @@
       data: data.values.map((v, i) => ({
         value: v,
         itemStyle: {
-          color: i === bestIdx ? pick('#4ade80', L.positive) : pick('#a855f7', L.accent),
+          color: i === bestIdx ? pick('#4ade80', L.positive) : pick('#34d399', L.accent),
           borderRadius: [4, 4, 0, 0],
           shadowBlur: i === bestIdx ? 12 : 0,
           shadowColor: i === bestIdx ? pick('rgba(74, 222, 128, 0.5)', 'rgba(22, 163, 74, 0.35)') : 'transparent',

@@ -186,10 +186,10 @@
     cursor: default;
   }
   .heatmap-cell:hover { transform: scale(1.4); z-index: 1; border-color: var(--glass-border-hover); }
-  .heatmap-cell.l1 { background: rgba(139, 92, 246, 0.35); }
-  .heatmap-cell.l2 { background: rgba(139, 92, 246, 0.6); }
-  .heatmap-cell.l3 { background: rgba(168, 85, 247, 0.85); }
-  .heatmap-cell.l4 { background: #a855f7; box-shadow: 0 0 6px rgba(168, 85, 247, 0.5); }
+  .heatmap-cell.l1 { background: rgba(52, 211, 153, 0.28); }
+  .heatmap-cell.l2 { background: rgba(52, 211, 153, 0.52); }
+  .heatmap-cell.l3 { background: rgba(16, 185, 129, 0.8); }
+  .heatmap-cell.l4 { background: #10b981; box-shadow: 0 0 6px rgba(52, 211, 153, 0.5); }
   .heatmap-cell.today { box-shadow: 0 0 0 1.5px var(--accent) !important; }
 
   .heatmap-legend { display: flex; align-items: center; gap: 3px; justify-content: flex-end; margin-top: 4px; }

@@ -39,9 +39,9 @@
       type: 'radar',
       data: [{
         value: data.values,
-        areaStyle: { color: pick('rgba(168, 85, 247, 0.2)', 'rgba(139, 92, 246, 0.18)') },
-        lineStyle: { color: pick('#a855f7', L.accent), width: 2 },
-        itemStyle: { color: pick('#a855f7', L.accent) },
+        areaStyle: { color: pick('rgba(52, 211, 153, 0.2)', 'rgba(5, 150, 105, 0.18)') },
+        lineStyle: { color: pick('#34d399', L.accent), width: 2 },
+        itemStyle: { color: pick('#34d399', L.accent) },
       }],
     }],
   })
