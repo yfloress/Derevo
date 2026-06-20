@@ -15,38 +15,68 @@
      along with this program.  If not, see <https://www.gnu.org/licenses/agpl-3.0.html>. -->
 
 <script lang="ts">
+  import BaseChart from './BaseChart.svelte'
+  import { chartLight as L, pick } from '../../lib/charts/theme'
+  import type { WeekdayChartData } from '../../lib/types/habits'
+
   interface Props {
-    labels: string[]
-    values: number[]
+    data: WeekdayChartData
   }
-  let { labels, values }: Props = $props()
+
+  let { data }: Props = $props()
+
+  let bestIdx = $derived.by(() => {
+    let idx = -1
+    let max = 0
+    data.values.forEach((v, i) => {
+      if (v > max) { max = v; idx = i }
+    })
+    return idx
+  })
+
+  let option = $derived({
+    backgroundColor: 'transparent',
+    grid: { left: 40, right: 20, top: 10, bottom: 30 },
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: pick('#1a1a1a', L.tooltipBg),
+      borderColor: pick('#333', L.tooltipBorder),
+      textStyle: { color: pick('#e0e0e0', L.tooltipText), fontSize: 12 },
+      formatter: (p: { name: string, value: number }[]) =>
+        `${p[0].name}: ${(p[0].value * 100).toFixed(0)}%`,
+    },
+    xAxis: {
+      type: 'category',
+      data: data.labels,
+      axisLine: { lineStyle: { color: pick('#333', L.axisLine) } },
+      axisLabel: { color: pick('#888', L.label), fontSize: 11 },
+    },
+    yAxis: {
+      type: 'value',
+      max: 1,
+      axisLine: { show: false },
+      splitLine: { lineStyle: { color: pick('#1a1a1a', L.splitLine) } },
+      axisLabel: {
+        color: pick('#666', L.labelDim), fontSize: 10,
+        formatter: (v: number) => `${(v * 100).toFixed(0)}%`,
+      },
+    },
+    series: [{
+      type: 'bar',
+      data: data.values.map((v, i) => ({
+        value: v,
+        itemStyle: {
+          color: i === bestIdx ? pick('#4ade80', L.positive) : pick('#a855f7', L.accent),
+          borderRadius: [4, 4, 0, 0],
+          shadowBlur: i === bestIdx ? 12 : 0,
+          shadowColor: i === bestIdx ? pick('rgba(74, 222, 128, 0.5)', 'rgba(22, 163, 74, 0.35)') : 'transparent',
+        },
+      })),
+      barWidth: '50%',
+    }],
+  })
 </script>
 
-<div class="weekday-chart">
-  <div class="chart-title">Weekday Efficiency</div>
-  {#if labels.length === 0}
-    <div class="chart-empty">No data yet</div>
-  {:else}
-    <div class="chart-bars">
-      {#each labels as label, i}
-        <div class="bar-col">
-          <div class="bar-track">
-            <div class="bar-fill" style="height: {(values[i] * 100)}%"></div>
-          </div>
-          <span class="bar-label">{label}</span>
-        </div>
-      {/each}
-    </div>
-  {/if}
-</div>
+<BaseChart {option} height="200px" />
 
-<style>
-  .weekday-chart { padding: 1rem; }
-  .chart-title { font-size: 0.75rem; text-transform: uppercase; color: #888; margin-bottom: 0.75rem; }
-  .chart-empty { color: #555; font-size: 0.85rem; }
-  .chart-bars { display: flex; justify-content: space-between; align-items: flex-end; height: 120px; gap: 0.25rem; }
-  .bar-col { display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%; justify-content: flex-end; }
-  .bar-track { width: 100%; max-width: 36px; height: 80%; background: #1a1a1a; border-radius: 4px 4px 0 0; position: relative; display: flex; align-items: flex-end; }
-  .bar-fill { width: 100%; background: #8b5cf6; border-radius: 4px 4px 0 0; transition: height 0.5s; min-height: 2px; }
-  .bar-label { font-size: 0.65rem; color: #666; margin-top: 0.35rem; }
-</style>
+<style></style>

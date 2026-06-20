@@ -20,7 +20,6 @@
   import { app } from '../../lib/stores/app.svelte'
   import { i18n } from '../../lib/stores/i18n.svelte'
   import * as habitsApi from '../../lib/api/habits'
-  import { portal } from '../../lib/actions/portal'
   import type { StreakRewardDto, HabitDto } from '../../lib/types/habits'
 
   interface Props {
@@ -148,7 +147,6 @@
 
 <!-- Add Reward Modal -->
 {#if showAddReward}
-  <div use:portal>
     <div class="modal-backdrop" role="presentation" onclick={() => showAddReward = false} onkeydown={(e: KeyboardEvent) => { if (e.key === 'Escape') showAddReward = false }}></div>
     <div class="modal-wrapper">
       <div class="modal">
@@ -182,7 +180,6 @@
         </button>
       </div>
     </div>
-  </div>
   </div>
 {/if}
 

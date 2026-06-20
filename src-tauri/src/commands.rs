@@ -73,11 +73,11 @@ pub fn fetch_habits(
                 if log.habit_id == h.id
                     && let Ok(d) = NaiveDate::parse_from_str(&log.completed_date, "%Y-%m-%d")
                 {
-                        let day = d.day() as usize;
-                        if day < days.len() {
-                            days[day] = true;
-                        }
+                    let day = d.day() as usize;
+                    if day < days.len() {
+                        days[day] = true;
                     }
+                }
             }
             HabitDto {
                 id: h.id,

@@ -197,7 +197,7 @@
   $effect(() => { if (activeTab === 'history') loadHistory() })
 </script>
 
-<div class="page"   class:blurred={showAddHabit || showAddReward || showAddGoal}>
+<div class="page" class:blurred={showAddHabit}>
   <div class="page-header">
     <h2>{i18n.t('habits-title', 'HABITS')}</h2>
     {#if activeTab === 'habits'}

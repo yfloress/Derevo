@@ -15,21 +15,44 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/agpl-3.0.html>.
 //
 
-let currentPage = $state('habits')
-let sidebarCollapsed = $state(false)
-let modal = $state<{ component: string; props: Record<string, unknown> } | null>(null)
-let toastMessage = $state<string | null>(null)
-const showSidebar: string[] = []
-
-export const app = {
-  get currentPage() { return currentPage },
-  set currentPage(v: string) { currentPage = v },
-  get sidebarCollapsed() { return sidebarCollapsed },
-  set sidebarCollapsed(v: boolean) { sidebarCollapsed = v },
-  get modal() { return modal },
-  setModal(comp: string, props: Record<string, unknown> = {}) { modal = { component: comp, props } },
-  closeModal() { modal = null },
-  get toast() { return toastMessage },
-  setToast(msg: string | null) { toastMessage = msg },
-  get showSidebar() { return showSidebar },
+interface ToastAction {
+  label: string
+  handler: () => void | Promise<void>
 }
+
+interface Toast {
+  message: string
+  isError: boolean
+  action: ToastAction | null
+}
+
+class AppState {
+  darkMode = $state(true)
+  toast = $state<Toast | null>(null)
+
+  private toastTimeout: ReturnType<typeof setTimeout> | null = null
+
+  showToast(message: string, isError = false, durationMs = 3000, action: ToastAction | null = null) {
+    if (this.toastTimeout) clearTimeout(this.toastTimeout)
+    this.toast = { message, isError, action }
+    this.toastTimeout = setTimeout(() => {
+      this.toast = null
+      this.toastTimeout = null
+    }, durationMs)
+  }
+
+  async runToastAction() {
+    const action = this.toast?.action
+    if (!action) return
+    this.dismissToast()
+    await action.handler()
+  }
+
+  dismissToast() {
+    if (this.toastTimeout) clearTimeout(this.toastTimeout)
+    this.toast = null
+    this.toastTimeout = null
+  }
+}
+
+export const app = new AppState()

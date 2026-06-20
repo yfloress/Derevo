@@ -15,44 +15,38 @@
      along with this program.  If not, see <https://www.gnu.org/licenses/agpl-3.0.html>. -->
 
 <script lang="ts">
+  import BaseChart from './BaseChart.svelte'
+  import { chartLight as L, pick } from '../../lib/charts/theme'
+  import type { RadarChartData } from '../../lib/types/habits'
+
   interface Props {
-    categories: string[]
-    values: number[]
-    maxValue: number
+    data: RadarChartData
   }
-  let { categories, values, maxValue = 1 }: Props = $props()
+
+  let { data }: Props = $props()
+
+  let option = $derived({
+    backgroundColor: 'transparent',
+    radar: {
+      indicator: data.categories.map(c => ({ name: c, max: data.max_value })),
+      shape: 'polygon',
+      axisName: { color: pick('#888', L.label), fontSize: 11 },
+      splitLine: { lineStyle: { color: pick('#222', L.splitLine) } },
+      splitArea: { areaStyle: { color: ['transparent'] } },
+      axisLine: { lineStyle: { color: pick('#333', L.axisLine) } },
+    },
+    series: [{
+      type: 'radar',
+      data: [{
+        value: data.values,
+        areaStyle: { color: pick('rgba(168, 85, 247, 0.2)', 'rgba(139, 92, 246, 0.18)') },
+        lineStyle: { color: pick('#a855f7', L.accent), width: 2 },
+        itemStyle: { color: pick('#a855f7', L.accent) },
+      }],
+    }],
+  })
 </script>
 
-<div class="radar-chart">
-  <div class="radar-title">Habit Radar</div>
-  {#if categories.length === 0}
-    <div class="radar-empty">No data yet</div>
-  {:else}
-    <div class="radar-bars">
-      {#each categories as cat, i}
-        <div class="radar-row">
-          <span class="radar-label">{cat}</span>
-          <div class="radar-bar-track">
-            <div
-              class="radar-bar-fill"
-              style="width: {maxValue > 0 ? (values[i] / maxValue * 100) : 0}%"
-            ></div>
-          </div>
-          <span class="radar-value">{values[i]}</span>
-        </div>
-      {/each}
-    </div>
-  {/if}
-</div>
+<BaseChart {option} height="280px" />
 
-<style>
-  .radar-chart { padding: 1rem; }
-  .radar-title { font-size: 0.75rem; text-transform: uppercase; color: #888; margin-bottom: 0.75rem; }
-  .radar-empty { color: #555; font-size: 0.85rem; }
-  .radar-bars { display: flex; flex-direction: column; gap: 0.4rem; }
-  .radar-row { display: flex; align-items: center; gap: 0.5rem; }
-  .radar-label { width: 80px; font-size: 0.75rem; color: #aaa; text-align: right; flex-shrink: 0; }
-  .radar-bar-track { flex: 1; height: 10px; background: #1a1a1a; border-radius: 5px; overflow: hidden; }
-  .radar-bar-fill { height: 100%; background: #8b5cf6; border-radius: 5px; transition: width 0.5s; }
-  .radar-value { width: 30px; font-size: 0.7rem; color: #888; text-align: right; flex-shrink: 0; }
-</style>
+<style></style>

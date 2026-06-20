@@ -15,19 +15,13 @@
      along with this program.  If not, see <https://www.gnu.org/licenses/agpl-3.0.html>. -->
 
 <script lang="ts">
+  import './app.css'
   import HabitsPage from './pages/HabitsPage.svelte'
+  import Toast from './components/Toast.svelte'
 </script>
 
 <main class="app-shell">
   <HabitsPage />
 </main>
 
-<style>
-  .app-shell {
-    width: 100vw;
-    height: 100vh;
-    overflow: auto;
-    background: #0a0a0a;
-    color: #e0e0e0;
-  }
-</style>
+<Toast />
