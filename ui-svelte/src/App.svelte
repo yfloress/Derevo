@@ -27,6 +27,7 @@
 </script>
 
 <main class="app-shell">
+  <div class="dragon-bg"></div>
   <HabitsPage />
 </main>
 

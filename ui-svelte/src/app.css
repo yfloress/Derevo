@@ -56,7 +56,8 @@
   --text-on-accent: #06140d;
   --card-bg:
     radial-gradient(circle at 0% 0%, rgba(52, 211, 153, 0.06) 0%, transparent 55%),
-    linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+    linear-gradient(145deg, rgba(12, 24, 19, 0.70) 0%, rgba(9, 18, 13, 0.65) 100%);
+  --card-bg-solid: rgba(12, 24, 19, 0.70);
   --card-bg-solid: #0a110d;
   --card-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   --card-accent-line: linear-gradient(90deg, transparent 0%, rgba(52, 211, 153, 0.4) 30%, rgba(52, 211, 153, 0.4) 70%, transparent 100%);
@@ -469,4 +470,28 @@ select option {
   width: 100vw;
   height: 100vh;
   overflow: auto;
+}
+
+.dragon-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  transform: scaleX(-1);
+}
+
+.dragon-bg::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 75%;
+  height: 100%;
+  background: linear-gradient(180deg, transparent, rgba(52, 211, 153, 0.10) 40%, rgba(52, 211, 153, 0.15));
+  mask: url('/dragon.svg') no-repeat bottom right / contain;
+  -webkit-mask: url('/dragon.svg') no-repeat bottom right / contain;
+}
+
+.light-mode .dragon-bg::before {
+  background: linear-gradient(180deg, transparent, rgba(5, 150, 105, 0.07) 40%, rgba(5, 150, 105, 0.10));
 }

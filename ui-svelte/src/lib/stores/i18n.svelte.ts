@@ -28,7 +28,7 @@ let currentLang = $state(loadLang())
 const translations: Record<string, Record<string, string>> = {
   en: {
     'app-name': 'DEREVO',
-    'habits-title': 'HABITS',
+    'habits-title': 'Дерево',
     'habits-tab-habits': 'Habits',
     'habits-tab-rewards': 'Rewards',
     'habits-tab-history': 'History',
@@ -142,7 +142,7 @@ const translations: Record<string, Record<string, string>> = {
   },
   es: {
     'app-name': 'DEREVO',
-    'habits-title': 'HÁBITOS',
+    'habits-title': 'Дерево',
     'habits-tab-habits': 'Hábitos',
     'habits-tab-rewards': 'Recompensas',
     'habits-tab-history': 'Historial',
