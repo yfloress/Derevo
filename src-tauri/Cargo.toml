@@ -1,0 +1,27 @@
+[package]
+name = "derevo-tauri"
+version = "0.1.0"
+edition = "2024"
+authors = ["Kyronix"]
+license = "AGPL-3.0-or-later"
+description = "Tauri shell for Derevo"
+
+[lib]
+name = "derevo_tauri"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-clipboard-manager = "2"
+derevo = { path = ".." }
+chrono = { version = "0.4", features = ["serde"] }
+directories = "6"
+log = "0.4"
+serde = { version = "1", features = ["derive"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+tauri = { version = "2", features = ["devtools"] }

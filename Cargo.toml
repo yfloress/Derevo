@@ -1,0 +1,29 @@
+[workspace]
+members = ["src-tauri"]
+resolver = "3"
+
+[package]
+name = "derevo"
+version = "0.1.0"
+edition = "2024"
+authors = ["Kyronix"]
+license = "AGPL-3.0-or-later"
+description = "A fast, native habit tracker built with Rust & Tauri."
+repository = "https://codeberg.org/Kyronix/Derevo"
+homepage = "https://codeberg.org/Kyronix/Derevo"
+readme = "README.md"
+keywords = ["habits", "tracker", "tauri", "rust"]
+categories = ["gui", "productivity"]
+
+[dependencies]
+chrono = { version = "0.4", features = ["serde"] }
+fluent-bundle = "0.16"
+log = "0.4"
+r2d2 = "0.8"
+r2d2_sqlite = "0.34"
+rusqlite = { version = "0.39", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+sys-locale = "0.3"
+thiserror = "2"
+unic-langid = "0.9"
+uuid = { version = "1", features = ["v4", "serde"] }

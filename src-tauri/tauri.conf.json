@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicotsx/tauri/tauri-v2/crates/tauri-config-schema/schema.json",
+  "productName": "Derevo",
+  "version": "0.1.0",
+  "identifier": "org.kyronix.derevo",
+  "build": {
+    "frontendDist": "../ui-svelte/dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "cd ../ui-svelte && pnpm dev",
+    "beforeBuildCommand": "cd ../ui-svelte && pnpm build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Derevo",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 360,
+        "minHeight": 480,
+        "resizable": true,
+        "decorations": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src ipc: http://ipc.localhost; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.png"
+    ]
+  }
+}
