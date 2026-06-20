@@ -33,25 +33,28 @@
 
   let { heatmap, heatmapYear = $bindable(new Date().getFullYear()), onyearchange }: Props = $props()
 
+  // Continuous, uniform week grid (GitHub-style): columns = calendar weeks
+  // (Sun-start), rows = weekday. Month labels sit above the first column whose
+  // first day belongs to that month, so they stay aligned without isolating
+  // the months into separate blocks.
   const heatmapData = $derived.by(() => {
     if (!heatmap) return { cells: [] as HeatmapCell[], monthLabels: [] as { label: string; col: number }[], totalWeeks: 0 }
     const cells: HeatmapCell[] = []
+    const colMonth: number[] = []
     let week = 0
     heatmap.data.forEach((day, idx) => {
-      const wd = new Date(day.date + 'T00:00:00').getDay()
+      const d = new Date(day.date + 'T00:00:00')
+      const wd = d.getDay()
       if (wd === 0 && idx > 0) week++
+      if (colMonth[week] === undefined) colMonth[week] = d.getMonth()
       cells.push({ week, weekday: wd, date: day.date, intensity: day.intensity })
     })
 
     const monthLabels: { label: string; col: number }[] = []
     let lastMonth = -1
-    cells.forEach(c => {
-      const m = new Date(c.date + 'T00:00:00').getMonth()
+    colMonth.forEach((m, col) => {
       if (m !== lastMonth) {
-        const label = MONTH_SHORT[m]
-        if (monthLabels.length === 0 || c.week - monthLabels[monthLabels.length - 1].col > 1) {
-          monthLabels.push({ label, col: c.week })
-        }
+        monthLabels.push({ label: MONTH_SHORT[m], col })
         lastMonth = m
       }
     })
@@ -83,22 +86,14 @@
     </div>
   </div>
   <div class="heatmap-scroll">
-    <div
-      class="heatmap-grid"
-    >
+    <div class="heatmap-grid" style="grid-template-columns: 16px repeat({heatmapData.totalWeeks}, 12px);">
       <div class="heatmap-corner"></div>
       {#each heatmapData.monthLabels as ml}
-        <span
-          class="heatmap-month-label"
-          style="grid-column: {ml.col + 2}; grid-row: 1;"
-        >{ml.label}</span>
+        <span class="heatmap-month-label" style="grid-column: {ml.col + 2}; grid-row: 1;">{ml.label}</span>
       {/each}
       {#each ['S','M','T','W','T','F','S'] as d, i}
         {#if i === 1 || i === 3 || i === 5}
-          <span
-            class="heatmap-dow-label"
-            style="grid-row: {i + 2}; grid-column: 1;"
-          >{d}</span>
+          <span class="heatmap-dow-label" style="grid-row: {i + 2}; grid-column: 1;">{d}</span>
         {/if}
       {/each}
       {#each heatmapData.cells as cell}
