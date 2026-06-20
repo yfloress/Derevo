@@ -40,9 +40,6 @@ fn get_app_data_dir() -> std::path::PathBuf {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let detected_lang = derevo::i18n::detect_system_language();
-    derevo::i18n::init(&detected_lang);
-
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())

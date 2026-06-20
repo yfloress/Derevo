@@ -204,7 +204,6 @@ pub fn fetch_habit_summary(
         best_streak,
         completion_rate,
         last_30_days: last_30,
-        best_day: None,
     })
 }
 
@@ -311,7 +310,6 @@ pub fn fetch_habit_analytics(
             values: weekday_values,
         },
         weekly_summary,
-        insight: String::new(),
     })
 }
 

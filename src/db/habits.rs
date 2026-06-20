@@ -117,34 +117,6 @@ impl super::Database {
 
     // ── Habit Logs CRUD ──
 
-    pub fn create_habit_log(&self, log: &HabitLog) -> Result<(), DbError> {
-        let conn = self.write();
-        conn.execute(
-            "INSERT INTO habit_logs (id, habit_id, completed_date) VALUES (?1, ?2, ?3)",
-            params![&log.id, &log.habit_id, &log.completed_date],
-        )?;
-        Ok(())
-    }
-
-    pub fn delete_habit_log(&self, habit_id: &str, date: &str) -> Result<bool, DbError> {
-        let conn = self.write();
-        let rows = conn.execute(
-            "DELETE FROM habit_logs WHERE habit_id = ?1 AND completed_date = ?2",
-            params![habit_id, date],
-        )?;
-        Ok(rows > 0)
-    }
-
-    pub fn habit_log_exists(&self, habit_id: &str, date: &str) -> Result<bool, DbError> {
-        let conn = self.read()?;
-        let count: i32 = conn.query_row(
-            "SELECT COUNT(*) FROM habit_logs WHERE habit_id = ?1 AND completed_date = ?2",
-            params![habit_id, date],
-            |row| row.get(0),
-        )?;
-        Ok(count > 0)
-    }
-
     pub fn get_habit_logs(
         &self,
         start_date: &str,

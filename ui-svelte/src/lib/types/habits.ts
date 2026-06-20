@@ -13,7 +13,9 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/agpl-3.0.html>.
-//export interface HabitDto {
+//
+
+export interface HabitDto {
   id: string
   name: string
   description: string | null
@@ -29,21 +31,12 @@ export interface HabitsResponse {
   days_in_month: number
 }
 
-export interface HabitInput {
-  id?: string
-  name: string
-  description?: string
-  color: string
-  category: string
-}
-
 export interface HabitSummary {
   habit_id: string
   current_streak: number
   best_streak: number
   completion_rate: number
   last_30_days: number
-  best_day: string | null
 }
 
 export interface HeatmapResponse {
@@ -60,7 +53,6 @@ export interface HabitAnalyticsResponse {
   radar: RadarChartData
   weekday_efficiency: WeekdayChartData
   weekly_summary: string
-  insight: string
 }
 
 export interface RadarChartData {
@@ -93,21 +85,6 @@ export interface MilestoneDto {
   unlocked_at: string | null
 }
 
-export interface StreakRewardInput {
-  id?: string
-  habit_id: string
-  is_consecutive: boolean
-  target_days?: number
-  target_total?: number
-  milestones: MilestoneInput[]
-}
-
-export interface MilestoneInput {
-  id?: string
-  target_days: number
-  reward_text: string
-}
-
 export interface GoalDto {
   id: string
   name: string
@@ -124,20 +101,6 @@ export interface CheckpointDto {
   description: string
   completed: boolean
   completed_at: string | null
-}
-
-export interface GoalInput {
-  id?: string
-  name: string
-  description?: string
-  reward_text: string
-  deadline?: string
-  checkpoints: CheckpointInput[]
-}
-
-export interface CheckpointInput {
-  id?: string
-  description: string
 }
 
 export interface AchievementDto {

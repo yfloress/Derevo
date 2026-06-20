@@ -55,10 +55,6 @@ impl RewardsService {
         db.get_streak_rewards_by_habit(habit_id)
     }
 
-    pub fn get_streak_reward(db: &Database, id: &str) -> Result<Option<StreakReward>, DbError> {
-        db.get_streak_reward(id)
-    }
-
     pub fn delete_streak_reward(db: &Database, id: String) -> Result<(), DbError> {
         db.delete_streak_reward(&id)
     }
@@ -176,10 +172,6 @@ impl RewardsService {
 
     pub fn get_goals(db: &Database) -> Result<Vec<Goal>, DbError> {
         db.get_goals()
-    }
-
-    pub fn get_goal(db: &Database, id: &str) -> Result<Option<Goal>, DbError> {
-        db.get_goal(id)
     }
 
     pub fn delete_goal(db: &Database, id: String) -> Result<(), DbError> {
@@ -369,10 +361,6 @@ impl RewardsService {
             }
         }
         Ok(is_completed)
-    }
-
-    pub fn get_checkpoint_progress(db: &Database, goal_id: &str) -> Result<(i32, i32), DbError> {
-        db.get_checkpoint_counts(goal_id)
     }
 
     // ── Achievements ──

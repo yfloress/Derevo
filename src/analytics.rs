@@ -28,14 +28,6 @@ pub struct WeekdayEfficiency {
 }
 
 #[derive(Debug, Clone)]
-pub struct MonthlyTrendPoint {
-    pub month_name: String,
-    pub avg_per_day: f32,
-    pub x_percent: f32,
-    pub y_percent: f32,
-}
-
-#[derive(Debug, Clone)]
 pub struct CategoryDistributionPoint {
     pub category: String,
     pub count: i32,
@@ -44,8 +36,6 @@ pub struct CategoryDistributionPoint {
 #[derive(Debug, Clone)]
 pub struct HabitAnalytics {
     pub weekday_data: Vec<WeekdayEfficiency>,
-    pub monthly_data: Vec<MonthlyTrendPoint>,
-    pub monthly_path: String,
     pub category_data: Vec<CategoryDistributionPoint>,
 }
 
@@ -133,112 +123,6 @@ pub fn compute_habit_analytics(db: &Database, days: i32) -> Result<HabitAnalytic
         })
         .collect();
 
-    let current_year = today.year();
-    let current_month = today.month();
-    let (start_year, start_month_num) = if current_month <= 11 {
-        (current_year - 1, current_month + 1)
-    } else {
-        (current_year, current_month - 11)
-    };
-    let twelve_months_ago_start =
-        NaiveDate::from_ymd_opt(start_year, start_month_num, 1).unwrap_or(start_date);
-
-    let mut monthly_data_map: std::collections::BTreeMap<(i32, u32), (i32, i32)> =
-        std::collections::BTreeMap::new();
-    let mut cursor = twelve_months_ago_start;
-    loop {
-        let key = (cursor.year(), cursor.month());
-        monthly_data_map.entry(key).or_insert((0, 0)).1 += 1;
-        cursor = match cursor.succ_opt() {
-            Some(c) => c,
-            None => break,
-        };
-        if cursor > today {
-            break;
-        }
-    }
-
-    for log in &logs {
-        if let Ok(date) = NaiveDate::parse_from_str(&log.completed_date, "%Y-%m-%d")
-            && date >= twelve_months_ago_start
-        {
-            let key = (date.year(), date.month());
-            if let Some(entry) = monthly_data_map.get_mut(&key) {
-                entry.0 += 1;
-            }
-        }
-    }
-
-    let month_names = [
-        "", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-    ];
-    let monthly_avgs: Vec<((i32, u32), f32, String)> = monthly_data_map
-        .iter()
-        .map(|((year, month), (count, days))| {
-            let avg = if *days > 0 {
-                *count as f32 / *days as f32
-            } else {
-                0.0
-            };
-            let label = format!("{} {}", month_names[*month as usize], year % 100);
-            ((*year, *month), avg, label)
-        })
-        .collect();
-
-    if monthly_avgs.is_empty() {
-        return Ok(HabitAnalytics {
-            weekday_data,
-            monthly_data: vec![],
-            monthly_path: "M 0 50 L 100 50".to_string(),
-            category_data: vec![],
-        });
-    }
-
-    let min_avg = monthly_avgs
-        .iter()
-        .map(|(_, avg, _)| *avg)
-        .fold(f32::MAX, f32::min);
-    let max_monthly_avg = monthly_avgs
-        .iter()
-        .map(|(_, avg, _)| *avg)
-        .fold(0.0_f32, f32::max);
-    let range = (max_monthly_avg - min_avg).max(0.1);
-    let len = monthly_avgs.len();
-
-    let monthly_data: Vec<MonthlyTrendPoint> = monthly_avgs
-        .iter()
-        .enumerate()
-        .map(|(i, (_, avg, label))| {
-            let x = if len > 1 {
-                (i as f32 / (len - 1) as f32) * 100.0
-            } else {
-                50.0
-            };
-            let y_ratio = (*avg - min_avg) / range;
-            let y = 100.0 - (10.0 + y_ratio * 80.0);
-            MonthlyTrendPoint {
-                month_name: label.clone(),
-                avg_per_day: *avg,
-                x_percent: x,
-                y_percent: y,
-            }
-        })
-        .collect();
-
-    let mut path = String::new();
-    for (i, point) in monthly_data.iter().enumerate() {
-        if i == 0 {
-            path.push_str(&format!("M {:.2} {:.2}", point.x_percent, point.y_percent));
-        } else {
-            path.push_str(&format!(" L {:.2} {:.2}", point.x_percent, point.y_percent));
-        }
-    }
-    let monthly_path = if path.is_empty() {
-        "M 0 50 L 100 50".to_string()
-    } else {
-        path
-    };
-
     let mut category_counts: std::collections::HashMap<String, i32> =
         std::collections::HashMap::new();
     let habit_categories: std::collections::HashMap<&str, &str> = habits
@@ -258,36 +142,6 @@ pub fn compute_habit_analytics(db: &Database, days: i32) -> Result<HabitAnalytic
 
     Ok(HabitAnalytics {
         weekday_data,
-        monthly_data,
-        monthly_path,
         category_data,
     })
-}
-
-fn validate_uuid(id: &str) -> Result<(), AppError> {
-    let trimmed = id.trim();
-    if trimmed.is_empty() {
-        return Err(AppError::Validation("ID cannot be empty".into()));
-    }
-    if uuid::Uuid::parse_str(trimmed).is_err() {
-        return Err(AppError::Validation("Invalid ID format".into()));
-    }
-    Ok(())
-}
-
-pub fn validate_uuid_optional(id: &Option<String>) -> Result<(), AppError> {
-    if let Some(id) = id
-        && !id.trim().is_empty()
-    {
-        validate_uuid(id)?;
-    }
-    Ok(())
-}
-
-pub fn validate_habit_category(category: &str) -> Result<String, AppError> {
-    let normalized = category.trim().to_lowercase();
-    if normalized.is_empty() || normalized.len() > 50 {
-        return Err(AppError::Validation("Invalid habit category".into()));
-    }
-    Ok(normalized)
 }

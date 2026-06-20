@@ -102,12 +102,6 @@ impl Database {
         }
     }
 
-    pub fn health_check(&self) -> Result<(), DbError> {
-        let conn = self.read()?;
-        conn.query_row("SELECT 1", [], |_| Ok(()))
-            .map_err(DbError::Sqlite)
-    }
-
     pub fn get_setting(&self, key: &str) -> Result<Option<String>, DbError> {
         use rusqlite::params;
         let conn = self.read()?;

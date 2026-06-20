@@ -33,7 +33,7 @@ telemetry.
 | **Shell**    | **Tauri 2**              |
 | **Frontend** | **Svelte 5 + TypeScript**|
 | **Database** | **SQLite**               |
-| **i18n**     | **Fluent** (EN / ES)     |
+| **i18n**     | **Svelte store** (EN / ES)|
 
 ## Quick Start (Nix)
 

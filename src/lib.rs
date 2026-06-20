@@ -19,6 +19,5 @@ pub mod analytics;
 pub mod db;
 pub mod dto;
 pub mod error;
-pub mod i18n;
 pub mod models;
 pub mod svc;

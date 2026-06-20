@@ -114,10 +114,6 @@ impl super::Database {
         Ok(())
     }
 
-    pub fn update_streak_reward(&self, reward: &StreakReward) -> Result<(), DbError> {
-        Self::update_streak_reward_on(&self.write(), reward)
-    }
-
     pub(crate) fn update_streak_reward_on(
         conn: &Connection,
         reward: &StreakReward,
@@ -127,10 +123,6 @@ impl super::Database {
             params![&reward.habit_id, reward.is_consecutive as i32, &reward.target_days, &reward.target_total, &reward.id],
         )?;
         Ok(())
-    }
-
-    pub fn delete_milestones_by_reward(&self, reward_id: &str) -> Result<(), DbError> {
-        Self::delete_milestones_by_reward_on(&self.write(), reward_id)
     }
 
     pub(crate) fn delete_milestones_by_reward_on(

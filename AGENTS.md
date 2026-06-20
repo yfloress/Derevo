@@ -94,8 +94,7 @@ src/
 │   ├── mod.rs          # Re-exports
 │   ├── habits.rs       # HabitService (validation, UUID gen, delegation to db)
 │   └── rewards.rs      # RewardsService (milestones, unlock logic, achievements)
-├── dto.rs              # Tauri IPC DTOs (Serialize/Deserialize)
-└── i18n.rs             # Fluent i18n service (embed locales via include_str!)
+└── dto.rs              # Tauri IPC DTOs (Serialize)
 ```
 
 `src-tauri/` (Tauri shell — separate crate, depends on `derevo` lib)
@@ -124,12 +123,8 @@ ui-svelte/
     └── App.svelte      # Root component
 ```
 
-`locales/` (i18n)
-```
-locales/
-├── en.ftl       # English translations (Fluent format)
-└── es.ftl       # Spanish translations
-```
+i18n lives entirely in the frontend (`ui-svelte/src/lib/stores/i18n.svelte.ts`),
+which holds the EN/ES translation dictionaries and the active-language state.
 
 ## Workflow Rules (Important)
 - Use `nix develop -c ...` for Rust commands (build/test).

@@ -66,10 +66,6 @@ impl HabitService {
         }
     }
 
-    pub fn archive_habit(db: &Database, id: String) -> Result<(), DbError> {
-        db.archive_habit(&id)
-    }
-
     pub fn delete_habit(db: &Database, id: String) -> Result<(), DbError> {
         db.delete_habit(&id)
     }
