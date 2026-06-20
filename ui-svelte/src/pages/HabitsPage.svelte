@@ -23,6 +23,7 @@
   import RadarChart from '../components/charts/RadarChart.svelte'
   import WeekdayChart from '../components/charts/WeekdayChart.svelte'
   import MonthlyProgressChart from '../components/charts/MonthlyProgressChart.svelte'
+  import SettingsModal from '../components/SettingsModal.svelte'
   import HabitFormModal from '../components/habits/HabitFormModal.svelte'
   import HabitHeatmap from '../components/habits/HabitHeatmap.svelte'
   import HabitRewardsPanel from '../components/habits/HabitRewardsPanel.svelte'
@@ -58,6 +59,7 @@
   let year = $state(new Date().getFullYear())
 
   // Modal state
+  let showSettings = $state(false)
   let showAddHabit = $state(false)
   let showAddReward = $state(false)
   let showAddGoal = $state(false)
@@ -203,23 +205,28 @@
   $effect(() => { if (activeTab === 'history') loadHistory() })
 </script>
 
-<div class="page" class:blurred={showAddHabit}>
+<div class="page" class:blurred={showAddHabit || showSettings}>
   <div class="page-header">
     <h2>{i18n.t('habits-title', 'HABITS')}</h2>
-    {#if activeTab === 'habits'}
-      <div class="month-nav">
-        <button class="nav-arrow" aria-label="Previous month" onclick={prevMonth}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 19l-7-7 7-7"/></svg>
-        </button>
-        <span class="month-label">{monthNames[month - 1]} {year}</span>
-        {#if monthLoading}
-          <div class="mini-spinner"></div>
-        {/if}
-        <button class="nav-arrow" aria-label="Next month" onclick={nextMonth}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
-        </button>
-      </div>
-    {/if}
+    <div class="header-actions">
+      {#if activeTab === 'habits'}
+        <div class="month-nav">
+          <button class="nav-arrow" aria-label="Previous month" onclick={prevMonth}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 19l-7-7 7-7"/></svg>
+          </button>
+          <span class="month-label">{monthNames[month - 1]} {year}</span>
+          {#if monthLoading}
+            <div class="mini-spinner"></div>
+          {/if}
+          <button class="nav-arrow" aria-label="Next month" onclick={nextMonth}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      {/if}
+      <button class="nav-arrow" aria-label={i18n.t('settings-title', 'Settings')} onclick={() => showSettings = true}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
   </div>
 
   <div class="tab-bar">
@@ -421,6 +428,9 @@
   onclose={() => showAddHabit = false}
 />
 
+<!-- Settings Modal -->
+<SettingsModal bind:show={showSettings} onclose={() => showSettings = false} />
+
 <style>
   .page { padding: 24px 32px; max-width: 1000px; width: 100%; margin: 0 auto; }
 
@@ -428,6 +438,7 @@
   .tab-bar { margin-bottom: 20px; }
   h2 { font-size: 1.3rem; letter-spacing: 0.2em; color: var(--text-primary); margin: 0; }
 
+  .header-actions { display: flex; align-items: center; gap: 14px; }
   .month-nav { display: flex; align-items: center; gap: 12px; }
   .nav-arrow { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px; display: flex; transition: color 0.15s; }
   .nav-arrow:hover { color: var(--text-primary); }

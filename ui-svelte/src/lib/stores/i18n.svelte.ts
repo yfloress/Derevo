@@ -15,7 +15,15 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/agpl-3.0.html>.
 //
 
-let currentLang = $state('en')
+function loadLang(): string {
+  try {
+    const l = localStorage.getItem('derevo-lang')
+    if (l === 'en' || l === 'es') return l
+  } catch { /* ignore */ }
+  return 'en'
+}
+
+let currentLang = $state(loadLang())
 
 const translations: Record<string, Record<string, string>> = {
   en: {
@@ -32,6 +40,11 @@ const translations: Record<string, Record<string, string>> = {
     'habits-activity-heatmap': 'Activity Heatmap',
     'habits-monthly-progress': 'Monthly Progress',
     'habits-perfect-day': 'Perfect day',
+    'settings-title': 'Settings',
+    'settings-appearance': 'Appearance',
+    'settings-theme-dark': 'Dark',
+    'settings-theme-light': 'Light',
+    'settings-language': 'Language',
     'habits-current-streak': 'Current Streak',
     'habits-best-streak': 'Best Streak',
     'habits-completion': 'Completion',
@@ -141,6 +154,11 @@ const translations: Record<string, Record<string, string>> = {
     'habits-activity-heatmap': 'Mapa de Actividad',
     'habits-monthly-progress': 'Progreso Mensual',
     'habits-perfect-day': 'Día perfecto',
+    'settings-title': 'Ajustes',
+    'settings-appearance': 'Apariencia',
+    'settings-theme-dark': 'Oscuro',
+    'settings-theme-light': 'Claro',
+    'settings-language': 'Idioma',
     'habits-current-streak': 'Racha Actual',
     'habits-best-streak': 'Mejor Racha',
     'habits-completion': 'Finalización',
@@ -237,7 +255,10 @@ const translations: Record<string, Record<string, string>> = {
 
 export const i18n = {
   get lang() { return currentLang },
-  setLanguage(lang: string) { currentLang = lang },
+  setLanguage(lang: string) {
+    currentLang = lang
+    try { localStorage.setItem('derevo-lang', lang) } catch { /* ignore */ }
+  },
   t(key: string, fallback?: string): string {
     return translations[currentLang]?.[key] ?? translations.en?.[key] ?? fallback ?? key
   },

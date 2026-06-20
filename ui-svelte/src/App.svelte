@@ -16,8 +16,14 @@
 
 <script lang="ts">
   import './app.css'
+  import { app } from './lib/stores/app.svelte'
   import HabitsPage from './pages/HabitsPage.svelte'
   import Toast from './components/Toast.svelte'
+
+  // Reflect the chosen theme on <html> so the .light-mode CSS variables apply.
+  $effect(() => {
+    document.documentElement.classList.toggle('light-mode', !app.darkMode)
+  })
 </script>
 
 <main class="app-shell">

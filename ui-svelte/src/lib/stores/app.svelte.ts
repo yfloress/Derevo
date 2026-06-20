@@ -26,9 +26,22 @@ interface Toast {
   action: ToastAction | null
 }
 
+function loadDarkMode(): boolean {
+  try {
+    return localStorage.getItem('derevo-theme') !== 'light'
+  } catch {
+    return true
+  }
+}
+
 class AppState {
-  darkMode = $state(true)
+  darkMode = $state(loadDarkMode())
   toast = $state<Toast | null>(null)
+
+  setDarkMode(dark: boolean) {
+    this.darkMode = dark
+    try { localStorage.setItem('derevo-theme', dark ? 'dark' : 'light') } catch { /* ignore */ }
+  }
 
   private toastTimeout: ReturnType<typeof setTimeout> | null = null
 
