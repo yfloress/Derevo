@@ -133,6 +133,7 @@
   }
 
   async function selectHabit(habit: HabitDto) {
+    if (selectedHabit?.id === habit.id) { selectedHabit = null; summary = null; return }
     selectedHabit = habit
     try {
       summary = await habitsApi.fetchHabitSummary(habit.id)
@@ -262,13 +263,18 @@
           </div>
           {#each habitsData.habits as habit}
             {@const streak = trailingStreak(habit, habitsData.days_in_month)}
-            <div class="grid-row">
+            <div class="grid-row" class:selected={selectedHabit?.id === habit.id}>
               <button
                 class="habit-name-col clickable"
+                class:active={selectedHabit?.id === habit.id}
                 onclick={() => selectHabit(habit)}
-                style="border-left: 3px solid {habit.color}"
+                style="--habit-accent: {habit.color}"
+                aria-expanded={selectedHabit?.id === habit.id}
               >
-                <span class="habit-name-text">{habit.name}</span>
+                <span class="name-left">
+                  <svg class="row-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+                  <span class="habit-name-text">{habit.name}</span>
+                </span>
                 {#if streak > 0}
                   <span class="streak-pill" style="color: {habit.color}; border-color: {habit.color}40">
                     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2s4 4 4 8a4 4 0 01-8 0c0-1 .3-2 .8-3C10 8 10 6 12 2zm0 11a3 3 0 110 6 3 3 0 010-6z"/></svg>
@@ -291,33 +297,15 @@
         </div>
       </div>
 
-      <!-- Monthly progress line -->
-      {#if progressLastDay > 0}
-        <div class="chart-card progress-card">
-          <h3>{i18n.t('habits-monthly-progress', 'Monthly Progress')}</h3>
-          <MonthlyProgressChart habits={habitsData.habits} lastDay={progressLastDay} />
-        </div>
-      {/if}
-
-      <!-- Activity Heatmap -->
-      {#if heatmap}
-        <HabitHeatmap
-          bind:heatmapYear={heatmapYear}
-          heatmap={heatmap}
-          onyearchange={async (year) => { heatmapYear = year; try { heatmap = await habitsApi.fetchHeatmap(heatmapYear) } catch (e) { app.showToast(String(e), true) } }}
-        />
-      {/if}
-
-      <!-- Selected habit summary -->
+      <!-- Selected habit metrics — inline, attached right under the grid -->
       {#if selectedHabit && summary}
-        <div class="summary-card">
+        <div class="summary-card" style="border-left: 3px solid {selectedHabit.color}">
           <div class="summary-header">
-            <h3 style="border-left: 3px solid {selectedHabit.color}; padding-left: 8px">
-              {selectedHabit.name}
-            </h3>
+            <h3>{selectedHabit.name}</h3>
             <div class="summary-actions">
               <button class="icon-btn" onclick={() => openEditHabit(selectedHabit!)}>{i18n.t('habits-edit', 'Edit')}</button>
               <button class="icon-btn danger" onclick={() => deleteHabit(selectedHabit!.id)}>{i18n.t('habits-delete', 'Delete')}</button>
+              <button class="icon-btn" aria-label="Close" onclick={() => { selectedHabit = null; summary = null }}>✕</button>
             </div>
           </div>
           <div class="stats-grid">
@@ -343,6 +331,23 @@
             </div>
           </div>
         </div>
+      {/if}
+
+      <!-- Monthly progress line -->
+      {#if progressLastDay > 0}
+        <div class="chart-card progress-card">
+          <h3>{i18n.t('habits-monthly-progress', 'Monthly Progress')}</h3>
+          <MonthlyProgressChart habits={habitsData.habits} lastDay={progressLastDay} />
+        </div>
+      {/if}
+
+      <!-- Activity Heatmap -->
+      {#if heatmap}
+        <HabitHeatmap
+          bind:heatmapYear={heatmapYear}
+          heatmap={heatmap}
+          onyearchange={async (year) => { heatmapYear = year; try { heatmap = await habitsApi.fetchHeatmap(heatmapYear) } catch (e) { app.showToast(String(e), true) } }}
+        />
       {/if}
 
       <!-- Analytics -->
@@ -470,21 +475,29 @@
     scrollbar-width: none;
   }
   .habit-grid-scroll::-webkit-scrollbar { display: none; }
-  .grid-header, .grid-row { display: flex; align-items: center; gap: 2px; min-width: max-content; }
-  .grid-header { margin-bottom: 2px; }
-  .grid-row { padding: 2px 0; }
+  .grid-header, .grid-row { display: flex; align-items: center; gap: 3px; min-width: max-content; }
+  .grid-header { margin-bottom: 3px; }
+  .grid-row { padding: 3px 0; border-radius: 8px; transition: background 0.15s; }
+  .grid-row.selected { background: var(--glass-elevated); box-shadow: inset 0 0 0 1px var(--glass-border); }
   .habit-name-col {
-    width: 140px; flex-shrink: 0; font-size: 0.8rem; color: var(--text-secondary);
-    padding: 4px 8px; overflow: hidden; white-space: nowrap;
+    width: 160px; flex-shrink: 0; font-size: 0.82rem; color: var(--text-secondary);
+    padding: 6px 8px; overflow: hidden; white-space: nowrap;
     display: flex; align-items: center; justify-content: space-between; gap: 6px;
   }
+  .name-left { display: flex; align-items: center; gap: 5px; overflow: hidden; }
+  .row-chevron { width: 12px; height: 12px; flex-shrink: 0; color: var(--text-tertiary); transition: transform 0.18s ease, color 0.15s; }
   .habit-name-col.weekday-spacer { padding: 0; }
   .habit-name-text { overflow: hidden; text-overflow: ellipsis; }
   .habit-name-col.clickable {
     background: none; border: none; cursor: pointer; color: var(--text-secondary);
-    text-align: left; border-radius: 4px; transition: background 0.15s, color 0.15s;
+    text-align: left; border-radius: 5px; padding-left: 10px;
+    box-shadow: inset 3px 0 0 var(--habit-accent);
+    transition: background 0.15s, color 0.15s;
   }
   .habit-name-col.clickable:hover { background: var(--glass-hover); color: var(--text-primary); }
+  .habit-name-col.clickable:hover .row-chevron { color: var(--text-secondary); }
+  .habit-name-col.clickable.active { color: var(--text-primary); }
+  .habit-name-col.clickable.active .row-chevron { transform: rotate(90deg); color: var(--accent); }
 
   .streak-pill {
     display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0;
@@ -496,34 +509,39 @@
   .streak-pill svg { width: 10px; height: 10px; }
 
   .weekday {
-    width: 18px; height: 14px; display: flex; align-items: center; justify-content: center;
-    font-size: 0.55rem; font-weight: 600; color: var(--text-tertiary);
+    width: 26px; height: 14px; display: flex; align-items: center; justify-content: center;
+    font-size: 0.6rem; font-weight: 600; color: var(--text-tertiary);
     text-transform: uppercase; letter-spacing: 0.05em;
   }
   .weekday.weekend { color: var(--accent); opacity: 0.55; }
 
   .day-num {
-    width: 18px; height: 16px; display: flex; align-items: center; justify-content: center;
-    font-size: 0.6rem; color: var(--text-tertiary); position: relative;
+    width: 26px; height: 18px; display: flex; align-items: center; justify-content: center;
+    font-size: 0.72rem; color: var(--text-tertiary); position: relative;
   }
   .day-num.is-today { color: var(--accent); font-weight: 700; }
   .day-num.is-today::after {
     content: ''; position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%);
-    width: 3px; height: 3px; border-radius: 50%; background: var(--accent);
+    width: 4px; height: 4px; border-radius: 50%; background: var(--accent);
   }
 
   .day-cell {
-    width: 18px; height: 18px; border-radius: 3px; border: 1px solid var(--glass-border);
+    width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--glass-border);
     background: var(--glass); cursor: pointer; padding: 0;
     transition: transform 0.12s ease, border-color 0.15s, background 0.15s;
   }
   .day-cell:hover {
     border-color: var(--glass-border-hover); background: var(--glass-hover);
-    transform: scale(1.2); z-index: 1;
+    transform: scale(1.15); z-index: 1;
   }
-  .day-cell.done { box-shadow: 0 0 6px rgba(255,255,255,0.08); }
-  .day-cell.done:hover { transform: scale(1.25); }
+  .day-cell.done { box-shadow: 0 0 8px rgba(255,255,255,0.1); }
+  .day-cell.done:hover { transform: scale(1.2); }
   .day-cell.is-today:not(.done) { box-shadow: 0 0 0 1px var(--accent) inset; }
+  /* Subtle vertical "today" guide across the whole grid column. */
+  .day-num.is-today::before {
+    content: ''; position: absolute; top: -3px; left: 50%; transform: translateX(-50%);
+    width: 26px; height: 1px; background: var(--accent); opacity: 0.4;
+  }
 
   /* Summary card */
   .summary-card {
