@@ -29,7 +29,7 @@ APP_NAME="derevo"                              # installed command / icon / .des
 CRATE_BIN="derevo-tauri"                       # cargo crate binary name
 BINARY="target/release/${CRATE_BIN}"            # workspace-shared target dir
 DESKTOP_FILE="packaging/linux/${APP_NAME}.desktop"
-ICON_FILE="packaging/linux/${APP_NAME}.png"     # committed 512x512 app icon
+ICON_FILE="packaging/linux/${APP_NAME}-512.png" # committed 512x512 icon (resized from ${APP_NAME}.png)
 ICON_SIZE="512x512"
 
 # --- pretty output ---

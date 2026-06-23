@@ -207,7 +207,10 @@
 
 <div class="page" class:blurred={showAddHabit || showSettings}>
   <div class="page-header">
-    <h2>{i18n.t('habits-title', 'HABITS')}</h2>
+    <div class="brand">
+      <img class="brand-logo" src="/logo.svg" alt="Derevo" />
+      <h2>{i18n.t('habits-title', 'HABITS')}</h2>
+    </div>
     <div class="header-actions">
       {#if activeTab === 'habits'}
         <div class="month-nav">
@@ -435,6 +438,8 @@
   .page { padding: 24px 32px; max-width: 1000px; width: 100%; margin: 0 auto; }
 
   .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-logo { height: 40px; width: auto; display: block; filter: drop-shadow(0 0 10px var(--accent-glow)); }
   .tab-bar { margin-bottom: 20px; }
   h2 { font-size: 1.5rem; letter-spacing: 0.05em; color: var(--text-primary); margin: 0; font-family: 'Unbounded', sans-serif; font-weight: 700; }
 
