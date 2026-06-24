@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="ui-svelte/public/logo.svg" alt="Derevo logo" width="140" />
+
 <h1>DEREVO</h1>
 
 <p><em>дерево</em> — tree. A fast, native habit tracker.</p>
@@ -14,6 +16,14 @@
 Tauri. Track daily habits, earn streak rewards, set goals with checkpoints,
 and visualize your progress — all on your device, with no accounts and no
 telemetry.
+
+## Screenshot
+
+<div align="center">
+
+<img src="docs/screenshot.png" alt="Derevo app screenshot" width="800" />
+
+</div>
 
 ## Features
 
