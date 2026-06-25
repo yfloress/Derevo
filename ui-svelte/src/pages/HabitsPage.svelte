@@ -58,6 +58,14 @@
   let month = $state(new Date().getMonth() + 1)
   let year = $state(new Date().getFullYear())
 
+  // Responsive week view: phones show one week at a time (the full month grid is
+  // too wide and horizontal scrolling is poor UX); desktop keeps the month grid.
+  let isMobile = $state(typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches)
+  let weekIndex = $state(0)
+  // Set when the week pager crosses a month edge so the freshly loaded month
+  // lands on its first/last week instead of today's.
+  let pendingWeek: 'first' | 'last' | null = null
+
   // Modal state
   let showSettings = $state(false)
   let showAddHabit = $state(false)
@@ -69,6 +77,7 @@
     loading = true
     try {
       habitsData = await habitsApi.fetchHabits(month, year)
+      syncWeekIndex()
       heatmap = await habitsApi.fetchHeatmap(heatmapYear)
       analytics = await habitsApi.fetchHabitAnalytics()
     } catch (e) {
@@ -112,6 +121,18 @@
     else { month++ }
     monthLoading = true
     load()
+  }
+
+  // Mobile week pager. Moves within the month; at an edge it flips to the
+  // adjacent month and lands on its last/first week.
+  function prevWeek() {
+    if (weekIndex > 0) weekIndex--
+    else { pendingWeek = 'last'; prevMonth() }
+  }
+
+  function nextWeek() {
+    if (weekIndex < weeks.length - 1) weekIndex++
+    else { pendingWeek = 'first'; nextMonth() }
   }
 
   async function toggleDay(habitId: string, day: number) {
@@ -190,6 +211,61 @@
     return new Date(year, month - 1, day).getDay()
   }
 
+  // Group the month into Sunday-aligned calendar weeks, padding days that fall
+  // outside the month with null. Powers the mobile week view.
+  function buildWeeks(daysInMonth: number, firstWeekday: number): (number | null)[][] {
+    const out: (number | null)[][] = []
+    let cur: (number | null)[] = []
+    for (let i = 0; i < firstWeekday; i++) cur.push(null)
+    for (let d = 1; d <= daysInMonth; d++) {
+      cur.push(d)
+      if (cur.length === 7) { out.push(cur); cur = [] }
+    }
+    if (cur.length) { while (cur.length < 7) cur.push(null); out.push(cur) }
+    return out
+  }
+
+  const weeks = $derived(habitsData ? buildWeeks(habitsData.days_in_month, weekdayOf(1)) : [])
+  const currentWeek = $derived(weeks[Math.min(weekIndex, Math.max(weeks.length - 1, 0))] ?? [])
+  const weekRangeLabel = $derived.by(() => {
+    const days = currentWeek.filter((d): d is number => d !== null)
+    if (days.length === 0) return ''
+    return `${days[0]} – ${days[days.length - 1]} ${monthNames[month - 1].slice(0, 3)}`
+  })
+
+  // Pick a sensible week after a month load: the one crossed into via the pager,
+  // else today's week (current month) or the first week.
+  function syncWeekIndex() {
+    if (!habitsData) { weekIndex = 0; pendingWeek = null; return }
+    const wks = buildWeeks(habitsData.days_in_month, weekdayOf(1))
+    if (pendingWeek === 'last') weekIndex = Math.max(wks.length - 1, 0)
+    else if (pendingWeek === 'first') weekIndex = 0
+    else {
+      const wk = wks.findIndex((w) => w.includes(todayDay))
+      weekIndex = viewingCurrentMonth && wk >= 0 ? wk : 0
+    }
+    pendingWeek = null
+  }
+
+  // When the month grid is wider than the screen, scroll it so today sits at
+  // the right edge (recent days stay in view). When the whole month fits there
+  // is no overflow, so it stays put. Other months (no "today") start at day 1.
+  // `_dep` re-runs it on month/data changes.
+  function autoScrollToToday(node: HTMLElement, _dep: unknown) {
+    const update = () => requestAnimationFrame(() => {
+      const target = node.querySelector('.day-num.is-today') as HTMLElement | null
+      if (!target) { node.scrollLeft = 0; return }
+      const nodeRect = node.getBoundingClientRect()
+      const tRect = target.getBoundingClientRect()
+      // Put today near the scroll area's right edge, inset enough to clear the
+      // edge fade; the card padding provides the gap to the border.
+      const delta = tRect.right - nodeRect.right + 18
+      node.scrollTo({ left: node.scrollLeft + delta })
+    })
+    update()
+    return { update }
+  }
+
   function trailingStreak(habit: HabitDto, daysInMonth: number): number {
     const lastDay = viewingCurrentMonth ? todayDay : daysInMonth
     let s = 0
@@ -203,6 +279,16 @@
   $effect(() => { load() })
   $effect(() => { if (activeTab === 'rewards') loadRewards() })
   $effect(() => { if (activeTab === 'history') loadHistory() })
+
+  // Track viewport so we can swap between the desktop month grid and the mobile
+  // week view.
+  $effect(() => {
+    const mq = window.matchMedia('(max-width: 640px)')
+    const apply = () => { isMobile = mq.matches }
+    apply()
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  })
 </script>
 
 <div class="page" class:blurred={showAddHabit || showSettings}>
@@ -211,25 +297,23 @@
       <img class="brand-logo" src="/logo.svg" alt="Derevo" />
       <h2>{i18n.t('habits-title', 'HABITS')}</h2>
     </div>
-    <div class="header-actions">
-      {#if activeTab === 'habits'}
-        <div class="month-nav">
-          <button class="nav-arrow" aria-label="Previous month" onclick={prevMonth}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 19l-7-7 7-7"/></svg>
-          </button>
-          <span class="month-label">{monthNames[month - 1]} {year}</span>
-          {#if monthLoading}
-            <div class="mini-spinner"></div>
-          {/if}
-          <button class="nav-arrow" aria-label="Next month" onclick={nextMonth}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
-          </button>
-        </div>
-      {/if}
-      <button class="nav-arrow" aria-label={i18n.t('settings-title', 'Settings')} onclick={() => showSettings = true}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      </button>
-    </div>
+    {#if activeTab === 'habits' && !isMobile}
+      <div class="month-nav">
+        <button class="nav-arrow" aria-label="Previous month" onclick={prevMonth}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <span class="month-label">{monthNames[month - 1]} {year}</span>
+        {#if monthLoading}
+          <div class="mini-spinner"></div>
+        {/if}
+        <button class="nav-arrow" aria-label="Next month" onclick={nextMonth}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    {/if}
+    <button class="nav-arrow settings-btn" aria-label={i18n.t('settings-title', 'Settings')} onclick={() => showSettings = true}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
   </div>
 
   <div class="tab-bar">
@@ -256,26 +340,77 @@
     </div>
 
     {#if habitsData && habitsData.habits.length > 0}
-      <div class="habit-grid">
-        <div class="habit-grid-scroll">
-          <div class="grid-header">
-            <span class="habit-name-col weekday-spacer"></span>
-            {#each Array(habitsData.days_in_month) as _, i}
-              {@const wd = weekdayOf(i + 1)}
-              <span class="weekday" class:weekend={wd === 0 || wd === 6}>{WEEKDAYS[wd]}</span>
+      {#if isMobile}
+        <!-- Mobile: single-week view (no horizontal scroll) -->
+        <div class="week-view">
+          <div class="week-pager">
+            <button class="nav-arrow" aria-label="Previous week" onclick={prevWeek}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 19l-7-7 7-7"/></svg>
+            </button>
+            <span class="week-range">{weekRangeLabel} {year}</span>
+            <button class="nav-arrow" aria-label="Next week" onclick={nextWeek}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+          <div class="wk-dow">
+            {#each WEEKDAYS as wd, i}
+              <span class:weekend={i === 0 || i === 6}>{wd}</span>
             {/each}
           </div>
-          <div class="grid-header">
-            <span class="habit-name-col">{i18n.t('habits-habit-col', 'Habit')}</span>
-            {#each Array(habitsData.days_in_month) as _, i}
-              <span class="day-num" class:is-today={i + 1 === todayDay}>{i + 1}</span>
+          <div class="wk-dates">
+            {#each currentWeek as d}
+              <span class:is-today={d === todayDay}>{d ?? ''}</span>
             {/each}
           </div>
           {#each habitsData.habits as habit}
             {@const streak = trailingStreak(habit, habitsData.days_in_month)}
-            <div class="grid-row" class:selected={selectedHabit?.id === habit.id}>
+            <div class="wk-row" class:selected={selectedHabit?.id === habit.id}>
               <button
-                class="habit-name-col clickable"
+                class="wk-name"
+                class:active={selectedHabit?.id === habit.id}
+                onclick={() => selectHabit(habit)}
+                style="--habit-accent: {habit.color}"
+                aria-expanded={selectedHabit?.id === habit.id}
+              >
+                <span class="habit-name-text">{habit.name}</span>
+                {#if streak > 0}
+                  <span class="streak-pill" style="color: {habit.color}; border-color: {habit.color}40">
+                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2s4 4 4 8a4 4 0 01-8 0c0-1 .3-2 .8-3C10 8 10 6 12 2zm0 11a3 3 0 110 6 3 3 0 010-6z"/></svg>
+                    {streak}
+                  </span>
+                {/if}
+              </button>
+              <div class="wk-cells">
+                {#each currentWeek as d}
+                  {#if d === null}
+                    <span class="wk-cell empty"></span>
+                  {:else}
+                    <button
+                      class="wk-cell"
+                      class:done={habit.days[d]}
+                      class:is-today={d === todayDay}
+                      style={habit.days[d] ? `background: ${habit.color}; border-color: ${habit.color}` : ''}
+                      onclick={() => toggleDay(habit.id, d)}
+                      aria-label="Day {d}"
+                    ></button>
+                  {/if}
+                {/each}
+              </div>
+            </div>
+          {/each}
+        </div>
+      {:else}
+      <div class="habit-grid">
+        <div class="grid-split">
+          <!-- Frozen names pane: blends with the card; the days scroll/clip on
+               their own to its right, so days vanish at a clean line + gap. -->
+          <div class="grid-names">
+            <div class="gn-row gn-row-wk"></div>
+            <div class="gn-row gn-row-dn">{i18n.t('habits-habit-col', 'Habit')}</div>
+            {#each habitsData.habits as habit}
+              {@const streak = trailingStreak(habit, habitsData.days_in_month)}
+              <button
+                class="gn-name"
                 class:active={selectedHabit?.id === habit.id}
                 onclick={() => selectHabit(habit)}
                 style="--habit-accent: {habit.color}"
@@ -292,20 +427,38 @@
                   </span>
                 {/if}
               </button>
-              {#each habit.days.slice(1, habitsData.days_in_month + 1) as done, i}
-                <button
-                  class="day-cell"
-                  class:done
-                  class:is-today={i + 1 === todayDay}
-                  style={done ? `background: ${habit.color}; border-color: ${habit.color}` : ''}
-                  onclick={() => toggleDay(habit.id, i + 1)}
-                  aria-label="Day {i + 1}"
-                ></button>
+            {/each}
+          </div>
+          <div class="habit-grid-scroll" use:autoScrollToToday={`${month}-${year}-${loading}`}>
+            <div class="grid-header">
+              {#each Array(habitsData.days_in_month) as _, i}
+                {@const wd = weekdayOf(i + 1)}
+                <span class="weekday" class:weekend={wd === 0 || wd === 6}>{WEEKDAYS[wd]}</span>
               {/each}
             </div>
-          {/each}
+            <div class="grid-header">
+              {#each Array(habitsData.days_in_month) as _, i}
+                <span class="day-num" class:is-today={i + 1 === todayDay}>{i + 1}</span>
+              {/each}
+            </div>
+            {#each habitsData.habits as habit}
+              <div class="grid-row" class:selected={selectedHabit?.id === habit.id}>
+                {#each habit.days.slice(1, habitsData.days_in_month + 1) as done, i}
+                  <button
+                    class="day-cell"
+                    class:done
+                    class:is-today={i + 1 === todayDay}
+                    style={done ? `background: ${habit.color}; border-color: ${habit.color}` : ''}
+                    onclick={() => toggleDay(habit.id, i + 1)}
+                    aria-label="Day {i + 1}"
+                  ></button>
+                {/each}
+              </div>
+            {/each}
+          </div>
         </div>
       </div>
+      {/if}
 
       <!-- Selected habit metrics — inline, attached right under the grid -->
       {#if selectedHabit && summary}
@@ -437,13 +590,12 @@
 <style>
   .page { padding: 24px 32px; max-width: 1000px; width: 100%; margin: 0 auto; }
 
-  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-  .brand { display: flex; align-items: center; gap: 12px; }
+  .page-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+  .brand { display: flex; align-items: center; gap: 12px; margin-right: auto; }
   .brand-logo { height: 40px; width: auto; display: block; filter: drop-shadow(0 0 10px var(--accent-glow)); }
   .tab-bar { margin-bottom: 20px; }
   h2 { font-size: 1.5rem; letter-spacing: 0.05em; color: var(--text-primary); margin: 0; font-family: 'Unbounded', sans-serif; font-weight: 700; }
 
-  .header-actions { display: flex; align-items: center; gap: 14px; }
   .month-nav { display: flex; align-items: center; gap: 12px; }
   .nav-arrow { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px; display: flex; transition: color 0.15s; }
   .nav-arrow:hover { color: var(--text-primary); }
@@ -460,6 +612,9 @@
   .habit-grid {
     position: relative;
     overflow: hidden; margin-bottom: 24px;
+    /* Padding lives on the card (not the scroll area) so the inner gap survives
+       horizontal scrolling — WebKitGTK drops a scroll container's end padding. */
+    padding: 14px 16px;
     background: var(--card-bg);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
@@ -475,45 +630,47 @@
     opacity: 0.5;
     z-index: 2;
   }
-  .habit-grid::after {
-    content: '';
-    position: absolute;
-    top: 0; right: 0; bottom: 0;
-    width: 56px;
-    background: linear-gradient(to right, transparent, var(--card-bg-solid, var(--card-bg)));
-    pointer-events: none;
-    z-index: 1;
-    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  /* Two-pane layout: frozen names (left) + scrolling/clipping days (right),
+     separated by a gap. Days disappear cleanly at the days pane's edge. */
+  .grid-split { display: flex; align-items: flex-start; gap: 10px; }
+
+  /* Names pane — static, blends with the card (no panel, no scroll). Row
+     heights mirror the days pane so rows line up. */
+  .grid-names { flex-shrink: 0; width: 160px; }
+  .gn-row { display: flex; align-items: center; font-size: 0.82rem; color: var(--text-secondary); }
+  .gn-row-wk { height: 17px; }                     /* weekday header: 14px + 3px margin */
+  .gn-row-dn { height: 21px; padding-left: 8px; }  /* day-number header: 18px + 3px margin */
+  .gn-name {
+    display: flex; align-items: center; justify-content: space-between; gap: 6px;
+    width: 100%; height: 32px;                      /* .grid-row: 26px cell + 6px */
+    background: none; border: none; cursor: pointer; color: var(--text-secondary);
+    text-align: left; font-size: 0.82rem; overflow: hidden; white-space: nowrap;
+    padding: 0 8px 0 10px; border-radius: 5px;
+    box-shadow: inset 3px 0 0 var(--habit-accent);
+    transition: background 0.15s, color 0.15s;
   }
+  .gn-name:hover { background: var(--glass-hover); color: var(--text-primary); }
+  .gn-name:hover .row-chevron { color: var(--text-secondary); }
+  .gn-name.active { background: var(--glass-elevated); color: var(--text-primary); }
+  .gn-name.active .row-chevron { transform: rotate(90deg); color: var(--accent); }
+  .name-left { display: flex; align-items: center; gap: 5px; overflow: hidden; }
+  .row-chevron { width: 12px; height: 12px; flex-shrink: 0; color: var(--text-tertiary); transition: transform 0.18s ease, color 0.15s; }
+  .habit-name-text { overflow: hidden; text-overflow: ellipsis; }
+
+  /* Days pane — scrolls horizontally; clips its content at both edges, with a
+     small fade so days dissolve into the line / right edge instead of cutting. */
   .habit-grid-scroll {
+    flex: 1; min-width: 0;
     overflow-x: auto;
-    padding: 14px 16px;
     scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
   }
   .habit-grid-scroll::-webkit-scrollbar { display: none; }
   .grid-header, .grid-row { display: flex; align-items: center; gap: 3px; min-width: max-content; }
   .grid-header { margin-bottom: 3px; }
-  .grid-row { padding: 3px 0; border-radius: 8px; transition: background 0.15s; }
+  .grid-row { height: 32px; border-radius: 8px; transition: background 0.15s; }
   .grid-row.selected { background: var(--glass-elevated); box-shadow: inset 0 0 0 1px var(--glass-border); }
-  .habit-name-col {
-    width: 160px; flex-shrink: 0; font-size: 0.82rem; color: var(--text-secondary);
-    padding: 6px 8px; overflow: hidden; white-space: nowrap;
-    display: flex; align-items: center; justify-content: space-between; gap: 6px;
-  }
-  .name-left { display: flex; align-items: center; gap: 5px; overflow: hidden; }
-  .row-chevron { width: 12px; height: 12px; flex-shrink: 0; color: var(--text-tertiary); transition: transform 0.18s ease, color 0.15s; }
-  .habit-name-col.weekday-spacer { padding: 0; }
-  .habit-name-text { overflow: hidden; text-overflow: ellipsis; }
-  .habit-name-col.clickable {
-    background: none; border: none; cursor: pointer; color: var(--text-secondary);
-    text-align: left; border-radius: 5px; padding-left: 10px;
-    box-shadow: inset 3px 0 0 var(--habit-accent);
-    transition: background 0.15s, color 0.15s;
-  }
-  .habit-name-col.clickable:hover { background: var(--glass-hover); color: var(--text-primary); }
-  .habit-name-col.clickable:hover .row-chevron { color: var(--text-secondary); }
-  .habit-name-col.clickable.active { color: var(--text-primary); }
-  .habit-name-col.clickable.active .row-chevron { transform: rotate(90deg); color: var(--accent); }
 
   .streak-pill {
     display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0;
@@ -558,6 +715,58 @@
     content: ''; position: absolute; top: -3px; left: 50%; transform: translateX(-50%);
     width: 26px; height: 1px; background: var(--accent); opacity: 0.4;
   }
+
+  /* ── Mobile week view ─────────────────────────────────────── */
+  .week-view {
+    position: relative;
+    background: var(--card-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border); border-radius: var(--radius-lg);
+    box-shadow: var(--card-shadow);
+    padding: 12px 14px 14px; margin-bottom: 24px;
+  }
+  .week-view::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0;
+    height: 1px; background: var(--card-accent-line); opacity: 0.5;
+  }
+  .week-pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 12px; }
+  .week-range { font-size: 0.9rem; color: var(--text-secondary); min-width: 120px; text-align: center; }
+  /* Fixed-size cells (capped, shrinkable) spread edge-to-edge — never overflow
+     the card and don't blow up to fill the full width. */
+  .wk-dow, .wk-dates, .wk-cells {
+    display: grid; grid-template-columns: repeat(7, minmax(0, 30px));
+    justify-content: space-between;
+  }
+  .wk-dow span {
+    text-align: center; font-size: 0.62rem; font-weight: 600; color: var(--text-tertiary);
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .wk-dow span.weekend { color: var(--accent); opacity: 0.55; }
+  .wk-dates { margin: 2px 0 6px; }
+  .wk-dates span { text-align: center; font-size: 0.7rem; color: var(--text-tertiary); }
+  .wk-dates span.is-today { color: var(--accent); font-weight: 700; }
+  .wk-row { padding: 8px 0; border-top: 1px solid var(--glass-border); border-radius: 8px; }
+  .wk-row.selected { background: var(--glass-elevated); }
+  .wk-name {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    width: 100%; background: none; border: none; cursor: pointer;
+    color: var(--text-secondary); text-align: left;
+    padding: 2px 4px 8px 10px; margin-bottom: 2px; font-size: 0.9rem;
+    box-shadow: inset 3px 0 0 var(--habit-accent); border-radius: 4px;
+  }
+  .wk-name.active { color: var(--text-primary); }
+  .wk-name .habit-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wk-cell {
+    aspect-ratio: 1; min-width: 0; border-radius: 7px;
+    border: 1px solid var(--glass-border); background: var(--glass);
+    cursor: pointer; padding: 0;
+    transition: transform 0.1s ease, border-color 0.15s, background 0.15s;
+  }
+  .wk-cell.empty { background: none; border: none; cursor: default; }
+  .wk-cell.done { box-shadow: 0 0 8px rgba(255, 255, 255, 0.1); }
+  .wk-cell.is-today:not(.done) { box-shadow: 0 0 0 1px var(--accent) inset; }
+  .wk-cell:not(.empty):active { transform: scale(0.93); }
 
   /* Summary card */
   .summary-card {
@@ -612,6 +821,11 @@
     .page { padding: 20px 16px; }
     .stats-grid { grid-template-columns: repeat(2, 1fr); }
     .analytics-section { grid-template-columns: 1fr; }
+    /* Reflow the header: brand + settings on top, month nav on its own
+       centered row so the settings icon always has a stable home. */
+    .page-header { flex-wrap: wrap; }
+    .settings-btn { order: 0; }
+    .month-nav { order: 1; width: 100%; justify-content: center; margin-top: 6px; }
   }
   .chart-card {
     position: relative;
