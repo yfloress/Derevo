@@ -142,7 +142,7 @@ which holds the EN/ES translation dictionaries and the active-language state.
 Every source file (including tests) must start with this exact header:
 ```rust
 // Derevo (дерево) — A fast, native habit tracker built with Rust & Tauri.
-// Copyright (C) 2026  Kyronix
+// Copyright (C) 2026  yfloress
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
