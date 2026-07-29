@@ -1,4 +1,4 @@
-package org.kyronix.derevo
+package io.github.yfloress.derevo
 
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
