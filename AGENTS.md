@@ -127,9 +127,10 @@ i18n lives entirely in the frontend (`ui-svelte/src/lib/stores/i18n.svelte.ts`),
 which holds the EN/ES translation dictionaries and the active-language state.
 
 ## Workflow Rules (Important)
-- Use `nix develop -c ...` for Rust commands (build/test).
+- Use `nix develop -c ...` for Rust commands (build/test). The default shell has
+  no Android SDK/NDK; use `nix develop .#android -c ...` for the Android client.
 - Never run cargo run or cargo build.
-- Do NOT use npm, only pnpm (with `ignore-scripts=true` in `.npmrc`).
+- Do NOT use npm, only pnpm (with `ignoreScripts: true` in `pnpm-workspace.yaml`).
 ### IPC rules
 - IPC types go in `src/dto.rs` — `#[derive(Serialize, Deserialize)]`.
 - Tauri commands go in `src-tauri/src/commands.rs` — `#[tauri::command]` functions.
@@ -161,9 +162,10 @@ Every source file (including tests) must start with this exact header:
 
 ## Definition of Done
 All generated code must pass the following without exception before being considered complete:
-- `nix develop -c cargo fmt` (formatting applied)
-- `nix develop -c cargo clippy -- -D warnings` (zero warnings)
-- `nix develop -c cargo test -j 2` (all tests pass)
+These are the same commands CI runs, so a green local run means a green CI run:
+- `nix develop -c cargo fmt --all` (formatting applied)
+- `nix develop -c cargo clippy --workspace --all-targets -- -D warnings` (zero warnings)
+- `nix develop -c cargo test --workspace -j 2` (all tests pass)
 - `nix develop -c cargo machete` (no new unused dependencies)
 
 Do not mark a task as done if any of these fail. If clippy or tests

@@ -16,8 +16,9 @@ Please describe the tests that you ran to verify your changes. Provide instructi
 - [ ] Test B: ...
 
 ## Screenshots (if applicable)
+
 ## Checklist
 - [ ] My code follows the style guidelines of this project
 - [ ] I have performed a self-review of my own code
 - [ ] I have commented my code, particularly in hard-to-understand areas
-- [ ] My changes generate no new warnings(cargo check / cargo clippy)
+- [ ] `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace` pass
