@@ -15,6 +15,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/agpl-3.0.html>.
 //
 
+import * as settingsApi from '../api/settings'
+import { i18n } from './i18n.svelte'
+
 interface ToastAction {
   label: string
   handler: () => void | Promise<void>
@@ -26,21 +29,29 @@ interface Toast {
   action: ToastAction | null
 }
 
-function loadDarkMode(): boolean {
-  try {
-    return localStorage.getItem('derevo-theme') !== 'light'
-  } catch {
-    return true
-  }
-}
-
 class AppState {
-  darkMode = $state(loadDarkMode())
+  darkMode = $state(true)
   toast = $state<Toast | null>(null)
 
-  setDarkMode(dark: boolean) {
+  /**
+   * Pulls theme and language from the database. Settings live there rather than
+   * in localStorage so they travel with a backup and survive the webview being
+   * cleared.
+   */
+  async load() {
+    try {
+      const settings = await settingsApi.fetchSettings()
+      this.darkMode = settings.theme !== 'light'
+      i18n.apply(settings.language)
+    } catch {
+      // A failure here is not worth a toast on startup: the defaults are fine
+      // and every other call will surface the same problem with context.
+    }
+  }
+
+  async setDarkMode(dark: boolean) {
     this.darkMode = dark
-    try { localStorage.setItem('derevo-theme', dark ? 'dark' : 'light') } catch { /* ignore */ }
+    await settingsApi.setTheme(dark ? 'dark' : 'light')
   }
 
   private toastTimeout: ReturnType<typeof setTimeout> | null = null

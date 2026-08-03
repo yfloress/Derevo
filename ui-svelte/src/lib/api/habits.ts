@@ -15,25 +15,44 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/agpl-3.0.html>.
 import { invoke } from '@tauri-apps/api/core'
 import type {
-  HabitsResponse, HabitSummary,
+  HabitsResponse, HabitSummary, ArchivedHabitDto,
   HeatmapResponse, HabitAnalyticsResponse,
-  StreakRewardDto, GoalDto, AchievementDto, MilestoneDto
+  StreakRewardDto, GoalDto, AchievementDto
 } from '../types/habits'
 
 export async function fetchHabits(month: number, year: number): Promise<HabitsResponse> {
   return invoke<HabitsResponse>('fetch_habits', { month, year })
 }
 
+export async function fetchArchivedHabits(): Promise<ArchivedHabitDto[]> {
+  return invoke<ArchivedHabitDto[]>('fetch_archived_habits')
+}
+
+export async function fetchCategories(): Promise<string[]> {
+  return invoke<string[]>('fetch_categories')
+}
+
 export async function createHabit(
-  name: string, description: string | null, color: string, category: string
+  name: string, description: string | null, color: string, category: string,
+  reminder_time: string | null
 ): Promise<void> {
-  return invoke('create_habit', { name, description, color, category })
+  return invoke('create_habit', { name, description, color, category, reminderTime: reminder_time })
 }
 
 export async function updateHabit(
-  id: string, name: string, description: string | null, color: string, category: string
+  id: string, name: string, description: string | null, color: string, category: string,
+  reminder_time: string | null
 ): Promise<void> {
-  return invoke('update_habit', { id, name, description, color, category })
+  return invoke('update_habit', { id, name, description, color, category, reminderTime: reminder_time })
+}
+
+/** Reversible: keeps every log. `deleteHabit` is the one that does not. */
+export async function archiveHabit(id: string): Promise<void> {
+  return invoke('archive_habit', { id })
+}
+
+export async function restoreHabit(id: string): Promise<void> {
+  return invoke('restore_habit', { id })
 }
 
 export async function deleteHabit(id: string): Promise<void> {
@@ -78,10 +97,6 @@ export async function deleteStreakReward(id: string): Promise<void> {
   return invoke('delete_streak_reward', { id })
 }
 
-export async function addMilestone(reward_id: string, target_days: number, reward_text: string): Promise<MilestoneDto> {
-  return invoke<MilestoneDto>('add_milestone', { rewardId: reward_id, targetDays: target_days, rewardText: reward_text })
-}
-
 export async function fetchGoals(): Promise<GoalDto[]> {
   return invoke<GoalDto[]>('fetch_goals')
 }
@@ -112,18 +127,6 @@ export async function archiveGoal(id: string): Promise<void> {
 
 export async function toggleCheckpoint(goal_id: string, checkpoint_id: string): Promise<void> {
   return invoke('toggle_checkpoint', { goalId: goal_id, checkpointId: checkpoint_id })
-}
-
-export async function addCheckpoint(goal_id: string, description: string): Promise<string> {
-  return invoke<string>('add_checkpoint', { goalId: goal_id, description })
-}
-
-export async function updateCheckpoint(checkpoint_id: string, description: string): Promise<void> {
-  return invoke('update_checkpoint', { checkpointId: checkpoint_id, description })
-}
-
-export async function deleteCheckpoint(checkpoint_id: string): Promise<void> {
-  return invoke('delete_checkpoint', { checkpointId: checkpoint_id })
 }
 
 export interface GoalCheckpointInput {

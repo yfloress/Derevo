@@ -33,7 +33,9 @@ telemetry.
 - **Streak rewards** — define milestones with custom reward text
 - **Goals** — set goals with checkpoints, auto-complete on all done
 - **Achievements** — trophies for completed goals and unlocked milestones
-- **Import/Export** — plain SQLite, easy to back up or migrate
+- **Reminders** — a time of day per habit, for the ones still pending
+- **Archive** — retire a habit without losing its history, and restore it later
+- **Backup** — export everything to a JSON file and import it back
 
 ## Tech Stack
 

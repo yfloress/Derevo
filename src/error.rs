@@ -28,6 +28,9 @@ pub enum DbError {
     #[error("Goal not found")]
     GoalNotFound,
 
+    #[error("Habit not found")]
+    HabitNotFound,
+
     #[error("Could not access application data directory")]
     AppDataDir,
 }
@@ -39,10 +42,30 @@ pub enum AppError {
 
     #[error("Validation error: {0}")]
     Validation(String),
+
+    #[error("File error: {0}")]
+    Io(String),
+
+    #[error("The file is not a valid Derevo backup: {0}")]
+    InvalidBackup(String),
+
+    #[error("This backup was written by a newer version of Derevo (format {0})")]
+    UnsupportedBackup(i32),
 }
 
-impl From<String> for AppError {
-    fn from(s: String) -> Self {
-        AppError::Validation(s)
+impl AppError {
+    /// Stable identifier the frontend switches on to pick a translated message.
+    /// Never change one of these without updating the matching i18n key.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            AppError::Database(DbError::GoalNotFound) => "goal-not-found",
+            AppError::Database(DbError::HabitNotFound) => "habit-not-found",
+            AppError::Database(DbError::AppDataDir) => "app-data-dir",
+            AppError::Database(_) => "database",
+            AppError::Validation(_) => "validation",
+            AppError::Io(_) => "io",
+            AppError::InvalidBackup(_) => "invalid-backup",
+            AppError::UnsupportedBackup(_) => "unsupported-backup",
+        }
     }
 }

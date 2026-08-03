@@ -28,7 +28,9 @@ pub fn up(conn: &Connection) -> Result<(), DbError> {
             color TEXT NOT NULL DEFAULT '#8b5cf6',
             category TEXT NOT NULL DEFAULT 'mind',
             created_at TEXT NOT NULL,
-            archived INTEGER NOT NULL DEFAULT 0
+            archived INTEGER NOT NULL DEFAULT 0,
+            -- Local time of day as HH:MM. NULL means no reminder.
+            reminder_time TEXT
         );
 
         CREATE TABLE IF NOT EXISTS habit_logs (

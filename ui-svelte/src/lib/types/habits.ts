@@ -15,13 +15,43 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/agpl-3.0.html>.
 //
 
+/** Shape every failed `invoke` rejects with. See `lib/api/errors.ts`. */
+export interface ErrorDto {
+  kind: string
+  message: string
+}
+
 export interface HabitDto {
   id: string
   name: string
   description: string | null
   color: string
   category: string
+  /** Local time as "HH:MM", or null when the habit has no reminder. */
+  reminder_time: string | null
   days: boolean[]
+}
+
+export interface ArchivedHabitDto {
+  id: string
+  name: string
+  color: string
+  category: string
+  created_at: string
+  log_count: number
+}
+
+export interface SettingsDto {
+  theme: string
+  language: string
+}
+
+export interface ImportSummary {
+  habits: number
+  logs: number
+  rewards: number
+  goals: number
+  achievements: number
 }
 
 export interface HabitsResponse {
@@ -52,7 +82,8 @@ export interface HeatmapDay {
 export interface HabitAnalyticsResponse {
   radar: RadarChartData
   weekday_efficiency: WeekdayChartData
-  weekly_summary: string
+  /** Index into `weekday_efficiency.labels`, or null with nothing logged yet. */
+  best_weekday: number | null
 }
 
 export interface RadarChartData {

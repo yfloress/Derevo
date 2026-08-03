@@ -26,6 +26,8 @@ pub struct Habit {
     pub category: String,
     pub created_at: String,
     pub archived: bool,
+    /// Local time of day as "HH:MM", or None for no reminder.
+    pub reminder_time: Option<String>,
 }
 
 impl Habit {
@@ -45,6 +47,7 @@ impl Habit {
             category,
             created_at,
             archived: false,
+            reminder_time: None,
         }
     }
 }
@@ -194,6 +197,24 @@ impl Checkpoint {
         };
         self.completed
     }
+}
+
+/// Everything the database holds, as written to and read back from a backup
+/// file. Adding a field here changes the on-disk format — bump
+/// `svc::backup::FORMAT_VERSION` when that happens.
+/// Missing sections default to empty so a file written by an older version, or
+/// one that simply had nothing to say about rewards, still restores.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct BackupData {
+    pub habits: Vec<Habit>,
+    pub habit_logs: Vec<HabitLog>,
+    pub streak_rewards: Vec<StreakReward>,
+    pub milestones: Vec<Milestone>,
+    pub goals: Vec<Goal>,
+    pub checkpoints: Vec<Checkpoint>,
+    pub achievements: Vec<Achievement>,
+    pub settings: Vec<(String, String)>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

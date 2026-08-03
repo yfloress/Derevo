@@ -20,6 +20,7 @@
   import { app } from '../../lib/stores/app.svelte'
   import { i18n } from '../../lib/stores/i18n.svelte'
   import * as habitsApi from '../../lib/api/habits'
+  import { errorMessage } from '../../lib/api/errors'
   import type { HabitDto } from '../../lib/types/habits'
 
   const colors = ['#34d399', '#22c55e', '#4ade80', '#fbbf24', '#fb923c', '#f87171', '#f472b6', '#22d3ee']
@@ -36,7 +37,11 @@
   let habitName = $state('')
   let habitDescription = $state('')
   let habitColor = $state('#34d399')
-  let habitCategory = $state('general')
+  let habitCategory = $state('')
+  let habitReminder = $state('')
+  // Offered as autocomplete so a new habit lands in an existing category
+  // instead of creating a near-duplicate of it.
+  let categories = $state<string[]>([])
 
   $effect(() => {
     show
@@ -47,28 +52,32 @@
         habitDescription = editing.description ?? ''
         habitColor = editing.color
         habitCategory = editing.category
+        habitReminder = editing.reminder_time ?? ''
       } else {
         habitName = ''
         habitDescription = ''
         habitColor = '#34d399'
-        habitCategory = 'general'
+        habitCategory = ''
+        habitReminder = ''
       }
+      habitsApi.fetchCategories().then((c) => { categories = c }).catch(() => { categories = [] })
     }
   })
 
   async function submitHabit() {
     try {
       const desc = habitDescription || null
+      const reminder = habitReminder || null
       if (editing) {
-        await habitsApi.updateHabit(editing.id, habitName, desc, habitColor, habitCategory)
+        await habitsApi.updateHabit(editing.id, habitName, desc, habitColor, habitCategory, reminder)
       } else {
-        await habitsApi.createHabit(habitName, desc, habitColor, habitCategory)
+        await habitsApi.createHabit(habitName, desc, habitColor, habitCategory, reminder)
       }
       show = false
       await onsubmit()
       app.showToast(editing ? i18n.t('habits-toast-habit-updated', 'Habit updated') : i18n.t('habits-toast-habit-created', 'Habit created'))
     } catch (e) {
-      app.showToast(String(e), true)
+      app.showToast(errorMessage(e), true)
     }
   }
 
@@ -108,7 +117,22 @@
       </label>
       <label>
         {i18n.t('habits-category', 'Category')}
-        <input type="text" bind:value={habitCategory} placeholder={i18n.t('habits-category-placeholder', 'e.g. health, learning')} />
+        <input
+          type="text"
+          list="habit-categories"
+          bind:value={habitCategory}
+          placeholder={i18n.t('habits-category-placeholder', 'e.g. health, learning')}
+        />
+        <datalist id="habit-categories">
+          {#each categories as category}
+            <option value={category}></option>
+          {/each}
+        </datalist>
+      </label>
+      <label>
+        {i18n.t('habits-reminder', 'Reminder')}
+        <input type="time" bind:value={habitReminder} />
+        <span class="field-hint">{i18n.t('habits-reminder-hint')}</span>
       </label>
     </div>
       <div class="modal-actions">
@@ -122,6 +146,7 @@
 {/if}
 
 <style>
+  .field-hint { display: block; margin-top: 4px; font-size: 0.72rem; color: var(--text-tertiary); }
   .color-palette { display: flex; gap: 6px; margin-top: 4px; }
   .color-swatch {
     width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent;

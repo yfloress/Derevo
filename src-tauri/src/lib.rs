@@ -43,6 +43,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             #[cfg(not(target_os = "android"))]
             let app_data_dir = get_app_data_dir();
@@ -60,18 +61,26 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::fetch_habits,
+            commands::fetch_archived_habits,
+            commands::fetch_categories,
             commands::create_habit,
             commands::update_habit,
+            commands::archive_habit,
+            commands::restore_habit,
             commands::delete_habit,
             commands::toggle_habit,
             commands::fetch_habit_summary,
             commands::fetch_heatmap,
             commands::fetch_habit_analytics,
+            commands::fetch_settings,
+            commands::set_theme,
+            commands::set_language,
+            commands::export_backup,
+            commands::import_backup,
             commands::fetch_rewards,
             commands::create_streak_reward,
             commands::update_streak_reward,
             commands::delete_streak_reward,
-            commands::add_milestone,
             commands::fetch_goals,
             commands::create_goal,
             commands::update_goal,
@@ -79,9 +88,6 @@ pub fn run() {
             commands::delete_goal,
             commands::complete_goal,
             commands::archive_goal,
-            commands::add_checkpoint,
-            commands::update_checkpoint,
-            commands::delete_checkpoint,
             commands::toggle_checkpoint,
             commands::fetch_achievements,
         ])

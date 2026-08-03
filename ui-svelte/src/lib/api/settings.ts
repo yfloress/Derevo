@@ -15,12 +15,17 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/agpl-3.0.html>.
 //
 
-pub mod backup;
-pub mod habits;
-pub mod rewards;
-pub mod settings;
+import { invoke } from '@tauri-apps/api/core'
+import type { SettingsDto } from '../types/habits'
 
-pub use backup::BackupService;
-pub use habits::HabitService;
-pub use rewards::RewardsService;
-pub use settings::SettingsService;
+export async function fetchSettings(): Promise<SettingsDto> {
+  return invoke<SettingsDto>('fetch_settings')
+}
+
+export async function setTheme(theme: string): Promise<void> {
+  return invoke('set_theme', { theme })
+}
+
+export async function setLanguage(language: string): Promise<void> {
+  return invoke('set_language', { language })
+}

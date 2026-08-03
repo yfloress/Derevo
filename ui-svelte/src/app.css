@@ -372,6 +372,7 @@ select option {
 .form-grid input[type="text"],
 .form-grid input[type="number"],
 .form-grid input[type="date"],
+.form-grid input[type="time"],
 .form-grid select {
   padding: 8px 12px;
   border: 1px solid var(--glass-border);
@@ -491,6 +492,60 @@ select option {
     flex: 1 0 auto;
   }
 }
+
+/* Shared by several habit components. Svelte scopes <style> per component, so
+   anything more than one of them needs has to live here. */
+.chart-card,
+.analytics-card {
+  position: relative;
+  background: var(--card-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+.chart-card::before,
+.analytics-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--card-accent-line);
+  opacity: 0.5;
+}
+
+.chart-card h3 {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  margin: 0 0 8px;
+}
+
+.analytics-card { grid-column: 1 / -1; }
+.progress-card { margin-bottom: 24px; }
+.insight { font-size: 0.85rem; color: var(--text-secondary); margin: 4px 0; }
+
+.streak-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  padding: 1px 7px 1px 4px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.streak-pill svg { width: 10px; height: 10px; }
+.habit-name-text { overflow: hidden; text-overflow: ellipsis; }
 
 .app-shell {
   width: 100vw;

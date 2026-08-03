@@ -314,23 +314,6 @@ impl RewardsService {
         db.get_checkpoints(goal_id)
     }
 
-    pub fn delete_checkpoint(db: &Database, checkpoint_id: String) -> Result<(), DbError> {
-        db.delete_checkpoint(&checkpoint_id)
-    }
-
-    pub fn update_checkpoint(
-        db: &Database,
-        checkpoint_id: String,
-        description: String,
-    ) -> Result<(), DbError> {
-        let mut cp = match db.get_checkpoint(&checkpoint_id)? {
-            Some(c) => c,
-            None => return Err(DbError::GoalNotFound),
-        };
-        cp.description = description;
-        db.update_checkpoint(&cp)
-    }
-
     pub fn toggle_checkpoint(
         db: &Database,
         goal_id: String,

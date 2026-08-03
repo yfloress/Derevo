@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/agpl-3.0.html>.
 //
 
+mod backup;
 mod habits;
 mod migrations;
 mod rewards;

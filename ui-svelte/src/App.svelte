@@ -20,6 +20,14 @@
   import HabitsPage from './pages/HabitsPage.svelte'
   import Toast from './components/Toast.svelte'
 
+  // Theme and language come from the database, so the page waits for them
+  // rather than painting in the default theme and correcting a frame later.
+  let ready = $state(false)
+
+  $effect(() => {
+    app.load().finally(() => { ready = true })
+  })
+
   // Reflect the chosen theme on <html> so the .light-mode CSS variables apply.
   $effect(() => {
     document.documentElement.classList.toggle('light-mode', !app.darkMode)
@@ -28,7 +36,9 @@
 
 <main class="app-shell">
   <div class="dragon-bg"></div>
-  <HabitsPage />
+  {#if ready}
+    <HabitsPage />
+  {/if}
 </main>
 
 <Toast />

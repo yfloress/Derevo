@@ -15,12 +15,24 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/agpl-3.0.html>.
 //
 
-pub mod backup;
-pub mod habits;
-pub mod rewards;
-pub mod settings;
+import { invoke } from '@tauri-apps/api/core'
+import type { ImportSummary } from '../types/habits'
 
-pub use backup::BackupService;
-pub use habits::HabitService;
-pub use rewards::RewardsService;
-pub use settings::SettingsService;
+/** The file is written by Rust; the dialog only supplies the path. */
+export async function exportBackup(path: string): Promise<ImportSummary> {
+  return invoke<ImportSummary>('export_backup', { path })
+}
+
+export async function importBackup(path: string): Promise<ImportSummary> {
+  return invoke<ImportSummary>('import_backup', { path })
+}
+
+export function defaultBackupName(): string {
+  const now = new Date()
+  const stamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('-')
+  return `derevo-backup-${stamp}.json`
+}

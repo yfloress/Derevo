@@ -19,16 +19,20 @@ use chrono::{Datelike, NaiveDate};
 use derevo::analytics::compute_habit_analytics;
 use derevo::db::Database;
 use derevo::dto::{
-    AchievementDto, CheckpointDto, GoalDto, HabitAnalyticsResponse, HabitDto, HabitSummary,
-    HabitsResponse, HeatmapDay, HeatmapResponse, MilestoneDto, RadarChartData, StreakRewardDto,
-    WeekdayChartData,
+    AchievementDto, ArchivedHabitDto, CheckpointDto, ErrorDto, GoalDto, HabitAnalyticsResponse,
+    HabitDto, HabitSummary, HabitsResponse, HeatmapDay, HeatmapResponse, ImportSummary,
+    MilestoneDto, RadarChartData, SettingsDto, StreakRewardDto, WeekdayChartData,
 };
-use derevo::svc::{HabitService, RewardsService};
+use derevo::error::AppError;
+use derevo::svc::{BackupService, HabitService, RewardsService, SettingsService};
+use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::State;
 
-fn to_string<E: std::fmt::Display>(e: E) -> String {
-    e.to_string()
+type CmdResult<T> = Result<T, ErrorDto>;
+
+fn invalid(message: &str) -> ErrorDto {
+    AppError::Validation(message.to_string()).into()
 }
 
 // ── Habits CRUD ──
@@ -38,10 +42,10 @@ pub fn fetch_habits(
     db: State<'_, Arc<Database>>,
     month: i32,
     year: i32,
-) -> Result<HabitsResponse, String> {
+) -> CmdResult<HabitsResponse> {
     let date = NaiveDate::from_ymd_opt(year, month as u32, 1)
-        .ok_or_else(|| "Invalid month/year".to_string())?;
-    let habits = HabitService::get_habits(&db).map_err(to_string)?;
+        .ok_or_else(|| invalid("Invalid month/year"))?;
+    let habits = HabitService::get_habits(&db)?;
 
     let next_month = if month == 12 {
         NaiveDate::from_ymd_opt(year + 1, 1, 1)
@@ -66,7 +70,6 @@ pub fn fetch_habits(
 
     let habit_dtos: Vec<HabitDto> = habits
         .into_iter()
-        .filter(|h| !h.archived)
         .map(|h| {
             let mut days = vec![false; (days_in_month + 1) as usize];
             for log in &logs {
@@ -85,6 +88,7 @@ pub fn fetch_habits(
                 description: h.description,
                 color: h.color,
                 category: h.category,
+                reminder_time: h.reminder_time,
                 days,
             }
         })
@@ -99,14 +103,43 @@ pub fn fetch_habits(
 }
 
 #[tauri::command]
+pub fn fetch_archived_habits(db: State<'_, Arc<Database>>) -> CmdResult<Vec<ArchivedHabitDto>> {
+    let rows = HabitService::get_archived_habits(&db)?;
+    Ok(rows
+        .into_iter()
+        .map(|(h, log_count)| ArchivedHabitDto {
+            id: h.id,
+            name: h.name,
+            color: h.color,
+            category: h.category,
+            created_at: h.created_at,
+            log_count,
+        })
+        .collect())
+}
+
+#[tauri::command]
+pub fn fetch_categories(db: State<'_, Arc<Database>>) -> CmdResult<Vec<String>> {
+    Ok(HabitService::get_categories(&db)?)
+}
+
+#[tauri::command]
 pub fn create_habit(
     db: State<'_, Arc<Database>>,
     name: String,
     description: Option<String>,
     color: String,
     category: String,
-) -> Result<String, String> {
-    HabitService::create_habit(&db, name, description, color, category).map_err(to_string)
+    reminder_time: Option<String>,
+) -> CmdResult<String> {
+    Ok(HabitService::create_habit(
+        &db,
+        name,
+        description,
+        color,
+        category,
+        reminder_time,
+    )?)
 }
 
 #[tauri::command]
@@ -117,23 +150,38 @@ pub fn update_habit(
     description: Option<String>,
     color: String,
     category: String,
-) -> Result<(), String> {
-    HabitService::update_habit(&db, id, name, description, color, category, false)
-        .map_err(to_string)
+    reminder_time: Option<String>,
+) -> CmdResult<()> {
+    Ok(HabitService::update_habit(
+        &db,
+        id,
+        name,
+        description,
+        color,
+        category,
+        reminder_time,
+    )?)
 }
 
 #[tauri::command]
-pub fn delete_habit(db: State<'_, Arc<Database>>, id: String) -> Result<(), String> {
-    HabitService::delete_habit(&db, id).map_err(to_string)
+pub fn archive_habit(db: State<'_, Arc<Database>>, id: String) -> CmdResult<()> {
+    Ok(HabitService::archive_habit(&db, id)?)
 }
 
 #[tauri::command]
-pub fn toggle_habit(
-    db: State<'_, Arc<Database>>,
-    habit_id: String,
-    date: String,
-) -> Result<(), String> {
-    HabitService::toggle_habit_completion(&db, habit_id.clone(), date).map_err(to_string)?;
+pub fn restore_habit(db: State<'_, Arc<Database>>, id: String) -> CmdResult<()> {
+    Ok(HabitService::restore_habit(&db, id)?)
+}
+
+/// Permanent, logs included. `archive_habit` is the reversible option.
+#[tauri::command]
+pub fn delete_habit(db: State<'_, Arc<Database>>, id: String) -> CmdResult<()> {
+    Ok(HabitService::delete_habit(&db, id)?)
+}
+
+#[tauri::command]
+pub fn toggle_habit(db: State<'_, Arc<Database>>, habit_id: String, date: String) -> CmdResult<()> {
+    HabitService::toggle_habit_completion(&db, habit_id.clone(), date)?;
 
     if let Ok(rewards) = RewardsService::get_streak_rewards_by_habit(&db, &habit_id) {
         for reward in rewards {
@@ -147,10 +195,8 @@ pub fn toggle_habit(
 pub fn fetch_habit_summary(
     db: State<'_, Arc<Database>>,
     habit_id: String,
-) -> Result<HabitSummary, String> {
-    let logs = db
-        .get_habit_logs("1970-01-01", "2099-12-31")
-        .map_err(to_string)?;
+) -> CmdResult<HabitSummary> {
+    let logs = db.get_habit_logs("1970-01-01", "2099-12-31")?;
     let today = chrono::Local::now().date_naive();
 
     let mut dates: Vec<NaiveDate> = logs
@@ -210,12 +256,12 @@ pub fn fetch_habit_summary(
 // ── Heatmap ──
 
 #[tauri::command]
-pub fn fetch_heatmap(db: State<'_, Arc<Database>>, year: i32) -> Result<HeatmapResponse, String> {
+pub fn fetch_heatmap(db: State<'_, Arc<Database>>, year: i32) -> CmdResult<HeatmapResponse> {
     let start = format!("{year}-01-01");
     let end = format!("{year}-12-31");
-    let habits = HabitService::get_habits(&db).map_err(to_string)?;
-    let habit_count = habits.iter().filter(|h| !h.archived).count() as f64;
-    let logs = db.get_habit_logs(&start, &end).map_err(to_string)?;
+    let habits = HabitService::get_habits(&db)?;
+    let habit_count = habits.len() as f64;
+    let logs = db.get_habit_logs(&start, &end)?;
 
     let mut day_counts: std::collections::HashMap<String, i32> = std::collections::HashMap::new();
     for log in &logs {
@@ -263,8 +309,8 @@ pub fn fetch_heatmap(db: State<'_, Arc<Database>>, year: i32) -> Result<HeatmapR
 pub fn fetch_habit_analytics(
     db: State<'_, Arc<Database>>,
     days: Option<i32>,
-) -> Result<HabitAnalyticsResponse, String> {
-    let analytics = compute_habit_analytics(&db, days.unwrap_or(90)).map_err(to_string)?;
+) -> CmdResult<HabitAnalyticsResponse> {
+    let analytics = compute_habit_analytics(&db, days.unwrap_or(90))?;
 
     let weekday_labels: Vec<String> = analytics
         .weekday_data
@@ -289,15 +335,13 @@ pub fn fetch_habit_analytics(
         .collect();
     let radar_max = radar_values.iter().cloned().fold(0.0_f64, f64::max);
 
-    let best_day = analytics
+    // The frontend translates this; sending a rendered English sentence would
+    // leave a stray language in a Spanish interface.
+    let best_weekday = analytics
         .weekday_data
         .iter()
-        .find(|w| w.is_best)
-        .map(|w| w.day_name.clone());
-    let weekly_summary = match &best_day {
-        Some(day) => format!("Your best day is {day}"),
-        None => "No data yet".to_string(),
-    };
+        .position(|w| w.is_best)
+        .map(|i| i as i32);
 
     Ok(HabitAnalyticsResponse {
         radar: RadarChartData {
@@ -309,16 +353,45 @@ pub fn fetch_habit_analytics(
             labels: weekday_labels,
             values: weekday_values,
         },
-        weekly_summary,
+        best_weekday,
     })
+}
+
+// ── Settings ──
+
+#[tauri::command]
+pub fn fetch_settings(db: State<'_, Arc<Database>>) -> CmdResult<SettingsDto> {
+    Ok(SettingsService::get_all(&db)?)
+}
+
+#[tauri::command]
+pub fn set_theme(db: State<'_, Arc<Database>>, theme: String) -> CmdResult<()> {
+    Ok(SettingsService::set_theme(&db, &theme)?)
+}
+
+#[tauri::command]
+pub fn set_language(db: State<'_, Arc<Database>>, language: String) -> CmdResult<()> {
+    Ok(SettingsService::set_language(&db, &language)?)
+}
+
+// ── Backup ──
+
+#[tauri::command]
+pub fn export_backup(db: State<'_, Arc<Database>>, path: String) -> CmdResult<ImportSummary> {
+    Ok(BackupService::export_to_file(&db, &PathBuf::from(path))?)
+}
+
+#[tauri::command]
+pub fn import_backup(db: State<'_, Arc<Database>>, path: String) -> CmdResult<ImportSummary> {
+    Ok(BackupService::import_from_file(&db, &PathBuf::from(path))?)
 }
 
 // ── Streak Rewards ──
 
 #[tauri::command]
-pub fn fetch_rewards(db: State<'_, Arc<Database>>) -> Result<Vec<StreakRewardDto>, String> {
-    let rewards = RewardsService::get_streak_rewards(&db).map_err(to_string)?;
-    let habits = HabitService::get_habits(&db).map_err(to_string)?;
+pub fn fetch_rewards(db: State<'_, Arc<Database>>) -> CmdResult<Vec<StreakRewardDto>> {
+    let rewards = RewardsService::get_streak_rewards(&db)?;
+    let habits = HabitService::get_habits(&db)?;
     let habit_names: std::collections::HashMap<String, String> =
         habits.into_iter().map(|h| (h.id.clone(), h.name)).collect();
 
@@ -359,14 +432,19 @@ pub fn create_streak_reward(
     is_consecutive: bool,
     target_days: i32,
     target_total: i32,
-) -> Result<String, String> {
+) -> CmdResult<String> {
     let (days_opt, total_opt) = if is_consecutive {
         (None, None)
     } else {
         (Some(target_days), Some(target_total))
     };
-    RewardsService::create_streak_reward(&db, habit_id, is_consecutive, days_opt, total_opt)
-        .map_err(to_string)
+    Ok(RewardsService::create_streak_reward(
+        &db,
+        habit_id,
+        is_consecutive,
+        days_opt,
+        total_opt,
+    )?)
 }
 
 #[tauri::command]
@@ -378,13 +456,13 @@ pub fn update_streak_reward(
     target_days: i32,
     target_total: i32,
     milestones: Vec<(i32, String)>,
-) -> Result<(), String> {
+) -> CmdResult<()> {
     let (days_opt, total_opt) = if is_consecutive {
         (None, None)
     } else {
         (Some(target_days), Some(target_total))
     };
-    RewardsService::update_streak_reward_with_milestones(
+    Ok(RewardsService::update_streak_reward_with_milestones(
         &db,
         id,
         habit_id,
@@ -392,30 +470,19 @@ pub fn update_streak_reward(
         days_opt,
         total_opt,
         milestones,
-    )
-    .map_err(to_string)
+    )?)
 }
 
 #[tauri::command]
-pub fn delete_streak_reward(db: State<'_, Arc<Database>>, id: String) -> Result<(), String> {
-    RewardsService::delete_streak_reward(&db, id).map_err(to_string)
-}
-
-#[tauri::command]
-pub fn add_milestone(
-    db: State<'_, Arc<Database>>,
-    reward_id: String,
-    target_days: i32,
-    reward_text: String,
-) -> Result<String, String> {
-    RewardsService::add_milestone(&db, reward_id, target_days, reward_text).map_err(to_string)
+pub fn delete_streak_reward(db: State<'_, Arc<Database>>, id: String) -> CmdResult<()> {
+    Ok(RewardsService::delete_streak_reward(&db, id)?)
 }
 
 // ── Goals ──
 
 #[tauri::command]
-pub fn fetch_goals(db: State<'_, Arc<Database>>) -> Result<Vec<GoalDto>, String> {
-    let goals = RewardsService::get_goals(&db).map_err(to_string)?;
+pub fn fetch_goals(db: State<'_, Arc<Database>>) -> CmdResult<Vec<GoalDto>> {
+    let goals = RewardsService::get_goals(&db)?;
     let dtos: Vec<GoalDto> = goals
         .into_iter()
         .map(|g| {
@@ -451,7 +518,7 @@ pub fn create_goal(
     description: String,
     reward_text: String,
     deadline: String,
-) -> Result<String, String> {
+) -> CmdResult<String> {
     let desc_opt = if description.trim().is_empty() {
         None
     } else {
@@ -462,7 +529,13 @@ pub fn create_goal(
     } else {
         Some(deadline)
     };
-    RewardsService::create_goal(&db, name, desc_opt, reward_text, deadline_opt).map_err(to_string)
+    Ok(RewardsService::create_goal(
+        &db,
+        name,
+        desc_opt,
+        reward_text,
+        deadline_opt,
+    )?)
 }
 
 #[tauri::command]
@@ -473,9 +546,15 @@ pub fn update_goal(
     description: String,
     reward_text: String,
     deadline: String,
-) -> Result<(), String> {
-    RewardsService::update_goal(&db, id, name, description, reward_text, deadline)
-        .map_err(to_string)
+) -> CmdResult<()> {
+    Ok(RewardsService::update_goal(
+        &db,
+        id,
+        name,
+        description,
+        reward_text,
+        deadline,
+    )?)
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -493,38 +572,20 @@ pub fn update_goal_with_checkpoints(
     reward_text: String,
     deadline: String,
     checkpoints: Vec<GoalCheckpointInput>,
-) -> Result<(), String> {
-    let count = checkpoints.len().min(4) as i32;
-    let get = |i: usize| -> (String, String) {
-        checkpoints
-            .get(i)
-            .map(|c| (c.id.clone(), c.text.clone()))
-            .unwrap_or_default()
-    };
-    let (cp1_id, cp1_text) = get(0);
-    let (cp2_id, cp2_text) = get(1);
-    let (cp3_id, cp3_text) = get(2);
-    let (cp4_id, cp4_text) = get(3);
-
-    let mut cps: Vec<(Option<String>, String, i32)> = Vec::with_capacity(count as usize);
-    let entries = [
-        (cp1_id, cp1_text),
-        (cp2_id, cp2_text),
-        (cp3_id, cp3_text),
-        (cp4_id, cp4_text),
-    ];
-    for (idx, (cp_id, cp_text)) in entries.into_iter().enumerate().take(count as usize) {
-        if cp_text.trim().is_empty() {
-            return Err("Checkpoint description cannot be empty".into());
+) -> CmdResult<()> {
+    let mut cps: Vec<(Option<String>, String, i32)> = Vec::with_capacity(checkpoints.len());
+    for (idx, checkpoint) in checkpoints.into_iter().take(4).enumerate() {
+        if checkpoint.text.trim().is_empty() {
+            return Err(invalid("Checkpoint description cannot be empty"));
         }
-        let id_opt = if cp_id.trim().is_empty() {
+        let id_opt = if checkpoint.id.trim().is_empty() {
             None
         } else {
-            Some(cp_id)
+            Some(checkpoint.id)
         };
-        cps.push((id_opt, cp_text, (idx + 1) as i32));
+        cps.push((id_opt, checkpoint.text, (idx + 1) as i32));
     }
-    RewardsService::update_goal_with_checkpoints(
+    Ok(RewardsService::update_goal_with_checkpoints(
         &db,
         id,
         name,
@@ -532,69 +593,41 @@ pub fn update_goal_with_checkpoints(
         reward_text,
         deadline,
         cps,
-    )
-    .map_err(to_string)
+    )?)
 }
 
 #[tauri::command]
-pub fn delete_goal(db: State<'_, Arc<Database>>, id: String) -> Result<(), String> {
-    RewardsService::delete_goal(&db, id).map_err(to_string)
+pub fn delete_goal(db: State<'_, Arc<Database>>, id: String) -> CmdResult<()> {
+    Ok(RewardsService::delete_goal(&db, id)?)
 }
 
 #[tauri::command]
-pub fn complete_goal(db: State<'_, Arc<Database>>, id: String) -> Result<Option<String>, String> {
-    RewardsService::complete_goal(&db, id).map_err(to_string)
+pub fn complete_goal(db: State<'_, Arc<Database>>, id: String) -> CmdResult<Option<String>> {
+    Ok(RewardsService::complete_goal(&db, id)?)
 }
 
 #[tauri::command]
-pub fn archive_goal(db: State<'_, Arc<Database>>, id: String) -> Result<(), String> {
-    RewardsService::archive_goal(&db, id).map_err(to_string)
+pub fn archive_goal(db: State<'_, Arc<Database>>, id: String) -> CmdResult<()> {
+    Ok(RewardsService::archive_goal(&db, id)?)
 }
 
 // ── Checkpoints ──
-
-#[tauri::command]
-pub fn add_checkpoint(
-    db: State<'_, Arc<Database>>,
-    goal_id: String,
-    description: String,
-) -> Result<String, String> {
-    RewardsService::add_checkpoint(&db, goal_id, description).map_err(to_string)
-}
-
-#[tauri::command]
-pub fn update_checkpoint(
-    db: State<'_, Arc<Database>>,
-    checkpoint_id: String,
-    description: String,
-) -> Result<(), String> {
-    RewardsService::update_checkpoint(&db, checkpoint_id, description).map_err(to_string)
-}
-
-#[tauri::command]
-pub fn delete_checkpoint(
-    db: State<'_, Arc<Database>>,
-    checkpoint_id: String,
-) -> Result<(), String> {
-    RewardsService::delete_checkpoint(&db, checkpoint_id).map_err(to_string)
-}
 
 #[tauri::command]
 pub fn toggle_checkpoint(
     db: State<'_, Arc<Database>>,
     goal_id: String,
     checkpoint_id: String,
-) -> Result<(), String> {
-    RewardsService::toggle_checkpoint(&db, goal_id, checkpoint_id)
-        .map(|_| ())
-        .map_err(|_| "Toggle failed".to_string())
+) -> CmdResult<()> {
+    RewardsService::toggle_checkpoint(&db, goal_id, checkpoint_id)?;
+    Ok(())
 }
 
 // ── Achievements ──
 
 #[tauri::command]
-pub fn fetch_achievements(db: State<'_, Arc<Database>>) -> Result<Vec<AchievementDto>, String> {
-    let achievements = RewardsService::get_achievements(&db).map_err(to_string)?;
+pub fn fetch_achievements(db: State<'_, Arc<Database>>) -> CmdResult<Vec<AchievementDto>> {
+    let achievements = RewardsService::get_achievements(&db)?;
     Ok(achievements
         .into_iter()
         .map(|a| AchievementDto {

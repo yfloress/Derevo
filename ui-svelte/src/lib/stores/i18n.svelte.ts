@@ -15,15 +15,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/agpl-3.0.html>.
 //
 
-function loadLang(): string {
-  try {
-    const l = localStorage.getItem('derevo-lang')
-    if (l === 'en' || l === 'es') return l
-  } catch { /* ignore */ }
-  return 'en'
-}
+import * as settingsApi from '../api/settings'
 
-let currentLang = $state(loadLang())
+// Replaced on startup by whatever the database holds; see AppState.load().
+let currentLang = $state('en')
 
 const translations: Record<string, Record<string, string>> = {
   en: {
@@ -139,6 +134,55 @@ const translations: Record<string, Record<string, string>> = {
     'form-name': 'Name',
     'form-description': 'Description',
     'form-color': 'Color',
+    'weekday-long-mon': 'Monday',
+    'weekday-long-tue': 'Tuesday',
+    'weekday-long-wed': 'Wednesday',
+    'weekday-long-thu': 'Thursday',
+    'weekday-long-fri': 'Friday',
+    'weekday-long-sat': 'Saturday',
+    'weekday-long-sun': 'Sunday',
+    'weekday-short-mon': 'Mon',
+    'weekday-short-tue': 'Tue',
+    'weekday-short-wed': 'Wed',
+    'weekday-short-thu': 'Thu',
+    'weekday-short-fri': 'Fri',
+    'weekday-short-sat': 'Sat',
+    'weekday-short-sun': 'Sun',
+    'habits-best-day': 'Your best day is',
+    'habits-no-data-yet': 'No data yet',
+    'habits-reminder': 'Reminder',
+    'habits-reminder-hint': 'Notifies you while Derevo is open, if the habit is still pending.',
+    'habits-reminder-clear': 'No reminder',
+    'habits-reminder-body': 'Still pending today.',
+    'habits-category-suggestions': 'Existing categories',
+    'habits-archive-habit': 'Archive',
+    'habits-archive-confirm': 'Archive this habit? Its history is kept and you can restore it from Settings.',
+    'habits-delete-confirm': 'Delete this habit permanently? Its whole history goes with it. This cannot be undone.',
+    'habits-toast-habit-archived': 'Habit archived',
+    'habits-toast-habit-restored': 'Habit restored',
+    'settings-archived': 'Archived habits',
+    'settings-archived-empty': 'Nothing archived.',
+    'settings-archived-logs': 'entries',
+    'settings-restore': 'Restore',
+    'settings-data': 'Data',
+    'settings-export': 'Export',
+    'settings-import': 'Import',
+    'settings-export-hint': 'Writes every habit, log, reward and goal to a single JSON file.',
+    'settings-import-confirm': 'Importing replaces everything currently stored. Export first if you want to keep it. Continue?',
+    'settings-toast-exported': 'Backup saved',
+    'settings-toast-imported': 'Backup restored',
+    'settings-notifications': 'Notifications',
+    'settings-notifications-denied': 'Blocked by the system. Enable them for Derevo to get reminders.',
+    'settings-notifications-granted': 'Allowed.',
+    'settings-notifications-request': 'Allow',
+    'error-database': 'Could not read or write the database.',
+    'error-validation': 'Some of the details are not valid. Check the form and try again.',
+    'error-goal-not-found': 'That goal no longer exists.',
+    'error-habit-not-found': 'That habit no longer exists.',
+    'error-app-data-dir': 'Could not reach the folder where Derevo keeps its data.',
+    'error-io': 'Could not read or write the file.',
+    'error-invalid-backup': 'That file is not a valid Derevo backup.',
+    'error-unsupported-backup': 'That backup comes from a newer version of Derevo.',
   },
   es: {
     'app-name': 'DEREVO',
@@ -250,14 +294,70 @@ const translations: Record<string, Record<string, string>> = {
     'form-save': 'Guardar',
     'form-cancel': 'Cancelar',
     'form-delete': 'Eliminar',
+    'form-name': 'Nombre',
+    'form-description': 'Descripción',
+    'form-color': 'Color',
+    'weekday-long-mon': 'lunes',
+    'weekday-long-tue': 'martes',
+    'weekday-long-wed': 'miércoles',
+    'weekday-long-thu': 'jueves',
+    'weekday-long-fri': 'viernes',
+    'weekday-long-sat': 'sábado',
+    'weekday-long-sun': 'domingo',
+    'weekday-short-mon': 'Lun',
+    'weekday-short-tue': 'Mar',
+    'weekday-short-wed': 'Mié',
+    'weekday-short-thu': 'Jue',
+    'weekday-short-fri': 'Vie',
+    'weekday-short-sat': 'Sáb',
+    'weekday-short-sun': 'Dom',
+    'habits-best-day': 'Tu mejor día es el',
+    'habits-no-data-yet': 'Aún no hay datos',
+    'habits-reminder': 'Recordatorio',
+    'habits-reminder-hint': 'Te avisa mientras Derevo está abierto, si el hábito sigue pendiente.',
+    'habits-reminder-clear': 'Sin recordatorio',
+    'habits-reminder-body': 'Sigue pendiente hoy.',
+    'habits-category-suggestions': 'Categorías existentes',
+    'habits-archive-habit': 'Archivar',
+    'habits-archive-confirm': '¿Archivar este hábito? Se conserva su historial y puedes restaurarlo desde Ajustes.',
+    'habits-delete-confirm': '¿Eliminar este hábito para siempre? Se va con todo su historial. No se puede deshacer.',
+    'habits-toast-habit-archived': 'Hábito archivado',
+    'habits-toast-habit-restored': 'Hábito restaurado',
+    'settings-archived': 'Hábitos archivados',
+    'settings-archived-empty': 'No hay nada archivado.',
+    'settings-archived-logs': 'registros',
+    'settings-restore': 'Restaurar',
+    'settings-data': 'Datos',
+    'settings-export': 'Exportar',
+    'settings-import': 'Importar',
+    'settings-export-hint': 'Guarda todos los hábitos, registros, recompensas y metas en un solo archivo JSON.',
+    'settings-import-confirm': 'Importar reemplaza todo lo que hay guardado. Exporta primero si quieres conservarlo. ¿Continuar?',
+    'settings-toast-exported': 'Respaldo guardado',
+    'settings-toast-imported': 'Respaldo restaurado',
+    'settings-notifications': 'Notificaciones',
+    'settings-notifications-denied': 'Bloqueadas por el sistema. Actívalas para Derevo si quieres recordatorios.',
+    'settings-notifications-granted': 'Permitidas.',
+    'settings-notifications-request': 'Permitir',
+    'error-database': 'No se pudo leer o escribir la base de datos.',
+    'error-validation': 'Algunos datos no son válidos. Revisa el formulario e inténtalo de nuevo.',
+    'error-goal-not-found': 'Esa meta ya no existe.',
+    'error-habit-not-found': 'Ese hábito ya no existe.',
+    'error-app-data-dir': 'No se pudo acceder a la carpeta donde Derevo guarda sus datos.',
+    'error-io': 'No se pudo leer o escribir el archivo.',
+    'error-invalid-backup': 'Ese archivo no es un respaldo válido de Derevo.',
+    'error-unsupported-backup': 'Ese respaldo viene de una versión más nueva de Derevo.',
   },
 }
 
 export const i18n = {
   get lang() { return currentLang },
-  setLanguage(lang: string) {
+  /** Switches language without writing it back — for loading what is stored. */
+  apply(lang: string) {
     currentLang = lang
-    try { localStorage.setItem('derevo-lang', lang) } catch { /* ignore */ }
+  },
+  async setLanguage(lang: string) {
+    currentLang = lang
+    await settingsApi.setLanguage(lang)
   },
   t(key: string, fallback?: string): string {
     return translations[currentLang]?.[key] ?? translations.en?.[key] ?? fallback ?? key

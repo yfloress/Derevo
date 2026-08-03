@@ -28,8 +28,9 @@ impl super::Database {
 
     pub(crate) fn create_habit_on(conn: &Connection, habit: &Habit) -> Result<(), DbError> {
         conn.execute(
-            "INSERT INTO habits (id, name, description, color, category, created_at, archived)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO habits
+                (id, name, description, color, category, created_at, archived, reminder_time)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
                 &habit.id,
                 &habit.name,
@@ -37,32 +38,91 @@ impl super::Database {
                 &habit.color,
                 &habit.category,
                 &habit.created_at,
-                habit.archived as i32
+                habit.archived as i32,
+                &habit.reminder_time
             ],
         )?;
         Ok(())
     }
 
+    fn row_to_habit(row: &rusqlite::Row<'_>) -> rusqlite::Result<Habit> {
+        Ok(Habit {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            description: row.get(2)?,
+            color: row.get(3)?,
+            category: row.get(4)?,
+            created_at: row.get(5)?,
+            archived: row.get::<_, i32>(6)? != 0,
+            reminder_time: row.get(7)?,
+        })
+    }
+
     pub fn get_habits(&self) -> Result<Vec<Habit>, DbError> {
         let conn = self.read()?;
         let mut stmt = conn.prepare(
-            "SELECT id, name, description, color, category, created_at, archived
+            "SELECT id, name, description, color, category, created_at, archived, reminder_time
              FROM habits WHERE archived = 0 ORDER BY created_at ASC",
         )?;
         let habits = stmt
-            .query_map([], |row| {
-                Ok(Habit {
-                    id: row.get(0)?,
-                    name: row.get(1)?,
-                    description: row.get(2)?,
-                    color: row.get(3)?,
-                    category: row.get(4)?,
-                    created_at: row.get(5)?,
-                    archived: row.get::<_, i32>(6)? != 0,
-                })
-            })?
+            .query_map([], Self::row_to_habit)?
             .collect::<Result<Vec<_>, _>>()?;
         Ok(habits)
+    }
+
+    /// Archived habits, newest first, each with how many logs it still holds so
+    /// the user knows what a permanent delete would take with it.
+    pub fn get_archived_habits(&self) -> Result<Vec<(Habit, i32)>, DbError> {
+        let conn = self.read()?;
+        let mut stmt = conn.prepare(
+            "SELECT h.id, h.name, h.description, h.color, h.category, h.created_at,
+                    h.archived, h.reminder_time, COUNT(l.id)
+             FROM habits h
+             LEFT JOIN habit_logs l ON l.habit_id = h.id
+             WHERE h.archived = 1
+             GROUP BY h.id
+             ORDER BY h.created_at DESC",
+        )?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok((Self::row_to_habit(row)?, row.get::<_, i32>(8)?))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
+    /// Distinct categories in use, most used first. Feeds the form's suggestions
+    /// so the user reaches for an existing category instead of inventing a
+    /// near-duplicate.
+    pub fn get_categories(&self) -> Result<Vec<String>, DbError> {
+        let conn = self.read()?;
+        let mut stmt = conn.prepare(
+            "SELECT category, COUNT(*) AS uses
+             FROM habits WHERE archived = 0
+             GROUP BY category ORDER BY uses DESC, category ASC",
+        )?;
+        let categories = stmt
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(categories)
+    }
+
+    /// The stored spelling of an existing category that matches `name` apart
+    /// from case and surrounding space, if there is one.
+    pub fn find_category_match(&self, name: &str) -> Result<Option<String>, DbError> {
+        let conn = self.read()?;
+        let result = conn.query_row(
+            "SELECT category FROM habits
+             WHERE category = ?1 COLLATE NOCASE
+             ORDER BY archived ASC LIMIT 1",
+            params![name],
+            |row| row.get(0),
+        );
+        match result {
+            Ok(category) => Ok(Some(category)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(DbError::Sqlite(e)),
+        }
     }
 
     pub fn get_habit(&self, id: &str) -> Result<Option<Habit>, DbError> {
@@ -72,20 +132,10 @@ impl super::Database {
 
     pub(crate) fn get_habit_on(conn: &Connection, id: &str) -> Result<Option<Habit>, DbError> {
         let result = conn.query_row(
-            "SELECT id, name, description, color, category, created_at, archived
+            "SELECT id, name, description, color, category, created_at, archived, reminder_time
              FROM habits WHERE id = ?1",
             params![id],
-            |row| {
-                Ok(Habit {
-                    id: row.get(0)?,
-                    name: row.get(1)?,
-                    description: row.get(2)?,
-                    color: row.get(3)?,
-                    category: row.get(4)?,
-                    created_at: row.get(5)?,
-                    archived: row.get::<_, i32>(6)? != 0,
-                })
-            },
+            Self::row_to_habit,
         );
         match result {
             Ok(habit) => Ok(Some(habit)),
@@ -97,8 +147,17 @@ impl super::Database {
     pub fn update_habit(&self, habit: &Habit) -> Result<(), DbError> {
         let conn = self.write();
         conn.execute(
-            "UPDATE habits SET name = ?1, description = ?2, color = ?3, category = ?4 WHERE id = ?5",
-            params![&habit.name, &habit.description, &habit.color, &habit.category, &habit.id],
+            "UPDATE habits
+             SET name = ?1, description = ?2, color = ?3, category = ?4, reminder_time = ?5
+             WHERE id = ?6",
+            params![
+                &habit.name,
+                &habit.description,
+                &habit.color,
+                &habit.category,
+                &habit.reminder_time,
+                &habit.id
+            ],
         )?;
         Ok(())
     }
@@ -109,6 +168,13 @@ impl super::Database {
         Ok(())
     }
 
+    pub fn restore_habit(&self, id: &str) -> Result<(), DbError> {
+        let conn = self.write();
+        conn.execute("UPDATE habits SET archived = 0 WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    /// Permanent: the foreign key cascades to this habit's logs and rewards.
     pub fn delete_habit(&self, id: &str) -> Result<(), DbError> {
         let conn = self.write();
         conn.execute("DELETE FROM habits WHERE id = ?1", params![id])?;

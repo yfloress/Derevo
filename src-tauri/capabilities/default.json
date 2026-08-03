@@ -6,6 +6,7 @@
   "permissions": [
     "core:default",
     "dialog:default",
-    "clipboard-manager:default"
+    "clipboard-manager:default",
+    "notification:default"
   ]
 }

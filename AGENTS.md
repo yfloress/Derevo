@@ -87,15 +87,22 @@ src/
 │   ├── mod.rs          # Database struct (plain SQLite, WAL, migrations, settings)
 │   ├── habits.rs       # impl Database for habits + logs CRUD
 │   ├── rewards.rs      # impl Database for rewards/goals/checkpoints/achievements CRUD
+│   ├── backup.rs       # impl Database for whole-database export/replace
 │   └── migrations/
 │       ├── mod.rs      # PRAGMA user_version migration framework
 │       └── v001_initial_schema.rs
 ├── svc/
 │   ├── mod.rs          # Re-exports
 │   ├── habits.rs       # HabitService (validation, UUID gen, delegation to db)
-│   └── rewards.rs      # RewardsService (milestones, unlock logic, achievements)
+│   ├── rewards.rs      # RewardsService (milestones, unlock logic, achievements)
+│   ├── settings.rs     # SettingsService (theme/language, defaults, validation)
+│   └── backup.rs       # BackupService (JSON backup file, format version)
 └── dto.rs              # Tauri IPC DTOs (Serialize)
 ```
+
+`tests/` holds the integration tests; `tests/common/mod.rs` builds a throwaway
+database on disk (`:memory:` will not do — the reader pool and the writer are
+separate connections).
 
 `src-tauri/` (Tauri shell — separate crate, depends on `derevo` lib)
 ```

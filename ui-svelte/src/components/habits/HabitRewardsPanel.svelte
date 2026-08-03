@@ -20,6 +20,7 @@
   import { app } from '../../lib/stores/app.svelte'
   import { i18n } from '../../lib/stores/i18n.svelte'
   import * as habitsApi from '../../lib/api/habits'
+  import { errorMessage } from '../../lib/api/errors'
   import type { StreakRewardDto, HabitDto } from '../../lib/types/habits'
 
   interface Props {
@@ -90,7 +91,7 @@
       await onrefresh()
       app.showToast(isEditing ? i18n.t('habits-toast-reward-updated', 'Reward updated') : i18n.t('habits-toast-reward-created', 'Reward created'))
     } catch (e) {
-      app.showToast(String(e), true)
+      app.showToast(errorMessage(e), true)
     }
   }
 
@@ -100,7 +101,7 @@
       await onrefresh()
       app.showToast(i18n.t('habits-toast-reward-deleted', 'Reward deleted'))
     } catch (e) {
-      app.showToast(String(e), true)
+      app.showToast(errorMessage(e), true)
     }
   }
 </script>

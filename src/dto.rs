@@ -15,7 +15,31 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/agpl-3.0.html>.
 //
 
+use crate::error::{AppError, DbError};
 use serde::Serialize;
+
+/// Every command fails with this shape. `kind` is a stable identifier the
+/// frontend translates; `message` is only a fallback for unexpected kinds.
+#[derive(Debug, Clone, Serialize)]
+pub struct ErrorDto {
+    pub kind: String,
+    pub message: String,
+}
+
+impl From<AppError> for ErrorDto {
+    fn from(err: AppError) -> Self {
+        ErrorDto {
+            kind: err.kind().to_string(),
+            message: err.to_string(),
+        }
+    }
+}
+
+impl From<DbError> for ErrorDto {
+    fn from(err: DbError) -> Self {
+        AppError::Database(err).into()
+    }
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct HabitDto {
@@ -24,7 +48,34 @@ pub struct HabitDto {
     pub description: Option<String>,
     pub color: String,
     pub category: String,
+    pub reminder_time: Option<String>,
     pub days: Vec<bool>,
+}
+
+/// Archived habits never reach the tracking grid, so they carry no day cells.
+#[derive(Debug, Clone, Serialize)]
+pub struct ArchivedHabitDto {
+    pub id: String,
+    pub name: String,
+    pub color: String,
+    pub category: String,
+    pub created_at: String,
+    pub log_count: i32,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SettingsDto {
+    pub theme: String,
+    pub language: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ImportSummary {
+    pub habits: i32,
+    pub logs: i32,
+    pub rewards: i32,
+    pub goals: i32,
+    pub achievements: i32,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -60,7 +111,9 @@ pub struct HeatmapDay {
 pub struct HabitAnalyticsResponse {
     pub radar: RadarChartData,
     pub weekday_efficiency: WeekdayChartData,
-    pub weekly_summary: String,
+    /// Index into `weekday_efficiency.labels` of the strongest day, or None
+    /// when there is nothing logged yet. The frontend writes the sentence.
+    pub best_weekday: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize)]
