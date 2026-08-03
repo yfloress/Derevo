@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/agpl-3.0.html>.
 import { invoke } from '@tauri-apps/api/core'
 import type {
-  HabitsResponse, HabitSummary, ArchivedHabitDto,
+  HabitsResponse, HabitSummary, ArchivedHabitDto, ScheduleInput,
   HeatmapResponse, HabitAnalyticsResponse,
   StreakRewardDto, GoalDto, AchievementDto
 } from '../types/habits'
@@ -32,18 +32,37 @@ export async function fetchCategories(): Promise<string[]> {
   return invoke<string[]>('fetch_categories')
 }
 
-export async function createHabit(
-  name: string, description: string | null, color: string, category: string,
+export interface HabitFormInput {
+  name: string
+  description: string | null
+  color: string
+  category: string
   reminder_time: string | null
-): Promise<void> {
-  return invoke('create_habit', { name, description, color, category, reminderTime: reminder_time })
+  schedule: ScheduleInput
 }
 
-export async function updateHabit(
-  id: string, name: string, description: string | null, color: string, category: string,
-  reminder_time: string | null
-): Promise<void> {
-  return invoke('update_habit', { id, name, description, color, category, reminderTime: reminder_time })
+/** The Rust side reads the form as one object, so it cannot arrive half-set. */
+function habitArg(form: HabitFormInput) {
+  return {
+    name: form.name,
+    description: form.description,
+    color: form.color,
+    category: form.category,
+    reminderTime: form.reminder_time,
+    schedule: {
+      kind: form.schedule.kind,
+      days: form.schedule.days,
+      targetPerPeriod: form.schedule.target_per_period,
+    },
+  }
+}
+
+export async function createHabit(form: HabitFormInput): Promise<void> {
+  return invoke('create_habit', { habit: habitArg(form) })
+}
+
+export async function updateHabit(id: string, form: HabitFormInput): Promise<void> {
+  return invoke('update_habit', { id, habit: habitArg(form) })
 }
 
 /** Reversible: keeps every log. `deleteHabit` is the one that does not. */

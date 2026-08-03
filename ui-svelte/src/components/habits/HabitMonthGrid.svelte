@@ -16,6 +16,7 @@
 
 <script lang="ts">
   import { i18n } from '../../lib/stores/i18n.svelte'
+  import { isDueOnWeekday } from '../../lib/types/habits'
   import type { HabitDto } from '../../lib/types/habits'
 
   interface Props {
@@ -101,9 +102,12 @@
       {#each habits as habit}
         <div class="grid-row" class:selected={selectedId === habit.id}>
           {#each habit.days.slice(1, daysInMonth + 1) as done, i}
+            {@const due = isDueOnWeekday(habit, weekdayOf(i + 1))}
+            <!-- Days off stay clickable: ticking one is a bonus, not an error. -->
             <button
               class="day-cell"
               class:done
+              class:off-day={!due}
               class:is-today={i + 1 === todayDay}
               style={done ? `background: ${habit.color}; border-color: ${habit.color}` : ''}
               onclick={() => ontoggle(habit.id, i + 1)}
@@ -210,7 +214,9 @@
     border-color: var(--glass-border-hover); background: var(--glass-hover);
     transform: scale(1.15); z-index: 1;
   }
-  .day-cell.done { box-shadow: 0 0 8px rgba(255,255,255,0.1); }
+  .day-cell.done { box-shadow: var(--cell-glow); }
+  /* Not scheduled: still there, just clearly not being asked for. */
+  .day-cell.off-day:not(.done) { background: none; border-style: dashed; opacity: 0.4; }
   .day-cell.done:hover { transform: scale(1.2); }
   .day-cell.is-today:not(.done) { box-shadow: 0 0 0 1px var(--accent) inset; }
 </style>

@@ -30,7 +30,13 @@ pub fn up(conn: &Connection) -> Result<(), DbError> {
             created_at TEXT NOT NULL,
             archived INTEGER NOT NULL DEFAULT 0,
             -- Local time of day as HH:MM. NULL means no reminder.
-            reminder_time TEXT
+            reminder_time TEXT,
+            schedule_kind TEXT NOT NULL DEFAULT 'daily'
+                CHECK(schedule_kind IN ('daily', 'weekdays', 'times_per_week')),
+            -- Weekday numbers for the weekdays kind, Sunday is 0: '1,3,5'.
+            schedule_days TEXT,
+            -- Completions a week must reach, for the times_per_week kind.
+            target_per_period INTEGER
         );
 
         CREATE TABLE IF NOT EXISTS habit_logs (

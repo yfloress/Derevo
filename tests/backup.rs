@@ -17,7 +17,8 @@
 
 mod common;
 
-use common::{TestDb, days_ago};
+use common::{TestDb, days_ago, habit_input};
+use derevo::svc::habits::HabitInput;
 use derevo::svc::{BackupService, HabitService, RewardsService, SettingsService};
 use std::path::PathBuf;
 
@@ -33,18 +34,17 @@ fn backup_path(name: &str) -> PathBuf {
 fn seed(db: &TestDb) -> String {
     let id = HabitService::create_habit(
         db,
-        "Walk".to_string(),
-        Some("Around the block".to_string()),
-        "#8b5cf6".to_string(),
-        "body".to_string(),
-        Some("08:30".to_string()),
+        HabitInput {
+            description: Some("Around the block".to_string()),
+            reminder_time: Some("08:30".to_string()),
+            ..habit_input("Walk", "body")
+        },
     )
     .expect("habit");
     HabitService::toggle_habit_completion(db, id.clone(), days_ago(0)).unwrap();
     HabitService::toggle_habit_completion(db, id.clone(), days_ago(1)).unwrap();
 
-    let reward =
-        RewardsService::create_streak_reward(db, id.clone(), true, None, None).expect("reward");
+    let reward = RewardsService::create_streak_reward(db, id.clone(), true, 30, 0).expect("reward");
     RewardsService::add_milestone(db, reward, 2, "Coffee".to_string()).unwrap();
 
     let goal = RewardsService::create_goal(
@@ -134,15 +134,7 @@ fn importing_replaces_whatever_was_there() {
     BackupService::export_to_file(&source, &path).expect("exported");
 
     let target = TestDb::new();
-    HabitService::create_habit(
-        &target,
-        "Something else".to_string(),
-        None,
-        "#ff0000".to_string(),
-        "mind".to_string(),
-        None,
-    )
-    .unwrap();
+    HabitService::create_habit(&target, habit_input("Something else", "mind")).unwrap();
 
     BackupService::import_from_file(&target, &path).expect("imported");
 
@@ -207,15 +199,7 @@ fn a_missing_file_reports_a_file_error() {
 #[test]
 fn a_log_pointing_at_no_habit_leaves_the_database_untouched() {
     let db = TestDb::new();
-    HabitService::create_habit(
-        &db,
-        "Keep me".to_string(),
-        None,
-        "#8b5cf6".to_string(),
-        "body".to_string(),
-        None,
-    )
-    .unwrap();
+    HabitService::create_habit(&db, habit_input("Keep me", "body")).unwrap();
 
     let path = backup_path("dangling");
     std::fs::write(

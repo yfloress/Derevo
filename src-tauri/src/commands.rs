@@ -23,8 +23,12 @@ use derevo::dto::{
     HabitDto, HabitSummary, HabitsResponse, HeatmapDay, HeatmapResponse, ImportSummary,
     MilestoneDto, RadarChartData, SettingsDto, StreakRewardDto, WeekdayChartData,
 };
-use derevo::error::AppError;
+use derevo::error::{AppError, DbError};
+use derevo::models::Schedule;
+use derevo::streaks;
+use derevo::svc::habits::{HabitInput, ScheduleInput};
 use derevo::svc::{BackupService, HabitService, RewardsService, SettingsService};
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::State;
@@ -33,6 +37,59 @@ type CmdResult<T> = Result<T, ErrorDto>;
 
 fn invalid(message: &str) -> ErrorDto {
     AppError::Validation(message.to_string()).into()
+}
+
+/// The schedule half of the habit form. Kept as one object so the three fields
+/// travel together and cannot drift apart across invoke calls.
+///
+/// The rename matters: Tauri only camel-cases a command's own arguments, so
+/// without it `targetPerPeriod` would land as an unknown field and quietly
+/// default to None.
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HabitScheduleInput {
+    pub kind: String,
+    #[serde(default)]
+    pub days: Vec<u32>,
+    #[serde(default)]
+    pub target_per_period: Option<i32>,
+}
+
+impl From<HabitScheduleInput> for ScheduleInput {
+    fn from(input: HabitScheduleInput) -> Self {
+        ScheduleInput {
+            kind: input.kind,
+            days: input.days,
+            target_per_period: input.target_per_period,
+        }
+    }
+}
+
+/// The whole habit form as one payload.
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HabitFormInput {
+    pub name: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    pub color: String,
+    pub category: String,
+    #[serde(default)]
+    pub reminder_time: Option<String>,
+    pub schedule: HabitScheduleInput,
+}
+
+impl From<HabitFormInput> for HabitInput {
+    fn from(input: HabitFormInput) -> Self {
+        HabitInput {
+            name: input.name,
+            description: input.description,
+            color: input.color,
+            category: input.category,
+            reminder_time: input.reminder_time,
+            schedule: input.schedule.into(),
+        }
+    }
 }
 
 // ── Habits CRUD ──
@@ -82,6 +139,10 @@ pub fn fetch_habits(
                     }
                 }
             }
+            let schedule_days = match h.schedule() {
+                Schedule::Weekdays(days) => days,
+                _ => Vec::new(),
+            };
             HabitDto {
                 id: h.id,
                 name: h.name,
@@ -89,6 +150,9 @@ pub fn fetch_habits(
                 color: h.color,
                 category: h.category,
                 reminder_time: h.reminder_time,
+                schedule_kind: h.schedule_kind,
+                schedule_days,
+                target_per_period: h.target_per_period,
                 days,
             }
         })
@@ -124,43 +188,17 @@ pub fn fetch_categories(db: State<'_, Arc<Database>>) -> CmdResult<Vec<String>> 
 }
 
 #[tauri::command]
-pub fn create_habit(
-    db: State<'_, Arc<Database>>,
-    name: String,
-    description: Option<String>,
-    color: String,
-    category: String,
-    reminder_time: Option<String>,
-) -> CmdResult<String> {
-    Ok(HabitService::create_habit(
-        &db,
-        name,
-        description,
-        color,
-        category,
-        reminder_time,
-    )?)
+pub fn create_habit(db: State<'_, Arc<Database>>, habit: HabitFormInput) -> CmdResult<String> {
+    Ok(HabitService::create_habit(&db, habit.into())?)
 }
 
 #[tauri::command]
 pub fn update_habit(
     db: State<'_, Arc<Database>>,
     id: String,
-    name: String,
-    description: Option<String>,
-    color: String,
-    category: String,
-    reminder_time: Option<String>,
+    habit: HabitFormInput,
 ) -> CmdResult<()> {
-    Ok(HabitService::update_habit(
-        &db,
-        id,
-        name,
-        description,
-        color,
-        category,
-        reminder_time,
-    )?)
+    Ok(HabitService::update_habit(&db, id, habit.into())?)
 }
 
 #[tauri::command]
@@ -196,58 +234,34 @@ pub fn fetch_habit_summary(
     db: State<'_, Arc<Database>>,
     habit_id: String,
 ) -> CmdResult<HabitSummary> {
+    let habit = db
+        .get_habit(&habit_id)?
+        .ok_or_else(|| ErrorDto::from(DbError::HabitNotFound))?;
+    let schedule = habit.schedule();
     let logs = db.get_habit_logs("1970-01-01", "2099-12-31")?;
     let today = chrono::Local::now().date_naive();
 
-    let mut dates: Vec<NaiveDate> = logs
+    let dates: BTreeSet<NaiveDate> = logs
         .iter()
         .filter(|l| l.habit_id == habit_id)
         .filter_map(|l| NaiveDate::parse_from_str(&l.completed_date, "%Y-%m-%d").ok())
         .collect();
-    dates.sort();
-    dates.dedup();
 
-    let mut current_streak = 0i32;
-    let mut cursor = today;
-    loop {
-        if dates.binary_search(&cursor).is_ok() {
-            current_streak += 1;
-            cursor = match cursor.pred_opt() {
-                Some(d) => d,
-                None => break,
-            };
-        } else {
-            break;
-        }
-    }
-
-    let mut best_streak = 0i32;
-    let mut streak = 0i32;
-    let mut prev: Option<NaiveDate> = None;
-    for d in &dates {
-        if let Some(p) = prev {
-            if *d == p.succ_opt().unwrap_or(p) {
-                streak += 1;
-            } else {
-                streak = 1;
-            }
-        } else {
-            streak = 1;
-        }
-        if streak > best_streak {
-            best_streak = streak;
-        }
-        prev = Some(*d);
-    }
-
-    let thirty_days_ago = today - chrono::Duration::days(30);
-    let last_30 = dates.iter().filter(|d| **d >= thirty_days_ago).count() as i32;
-    let completion_rate = last_30 as f64 / 30.0;
+    let thirty_days_ago = today - chrono::Duration::days(29);
+    let last_30 = dates.range(thirty_days_ago..=today).count() as i32;
+    // Against the days the schedule actually asks for. Dividing by a flat 30
+    // would cap a three-times-a-week habit at 43%.
+    let expected = streaks::expected_between(&schedule, thirty_days_ago, today);
+    let completion_rate = if expected > 0 {
+        (last_30 as f64 / expected as f64).min(1.0)
+    } else {
+        0.0
+    };
 
     Ok(HabitSummary {
         habit_id,
-        current_streak,
-        best_streak,
+        current_streak: streaks::current_streak(&schedule, &dates, today),
+        best_streak: streaks::best_streak(&schedule, &dates),
         completion_rate,
         last_30_days: last_30,
     })
@@ -260,7 +274,7 @@ pub fn fetch_heatmap(db: State<'_, Arc<Database>>, year: i32) -> CmdResult<Heatm
     let start = format!("{year}-01-01");
     let end = format!("{year}-12-31");
     let habits = HabitService::get_habits(&db)?;
-    let habit_count = habits.len() as f64;
+    let schedules: Vec<_> = habits.iter().map(|h| h.schedule()).collect();
     let logs = db.get_habit_logs(&start, &end)?;
 
     let mut day_counts: std::collections::HashMap<String, i32> = std::collections::HashMap::new();
@@ -274,8 +288,13 @@ pub fn fetch_heatmap(db: State<'_, Arc<Database>>, year: i32) -> CmdResult<Heatm
         while cursor <= year_end {
             let date_str = cursor.format("%Y-%m-%d").to_string();
             let count = day_counts.get(&date_str).copied().unwrap_or(0);
-            let intensity = if habit_count > 0.0 {
-                let ratio = count as f64 / habit_count;
+            // Only the habits due that day, or a day off would never light up.
+            let due_count = schedules
+                .iter()
+                .filter(|schedule| streaks::is_due_on(schedule, cursor))
+                .count() as f64;
+            let intensity = if due_count > 0.0 {
+                let ratio = count as f64 / due_count;
                 if ratio == 0.0 {
                     0
                 } else if ratio <= 0.25 {
@@ -433,17 +452,12 @@ pub fn create_streak_reward(
     target_days: i32,
     target_total: i32,
 ) -> CmdResult<String> {
-    let (days_opt, total_opt) = if is_consecutive {
-        (None, None)
-    } else {
-        (Some(target_days), Some(target_total))
-    };
     Ok(RewardsService::create_streak_reward(
         &db,
         habit_id,
         is_consecutive,
-        days_opt,
-        total_opt,
+        target_days,
+        target_total,
     )?)
 }
 
@@ -457,18 +471,13 @@ pub fn update_streak_reward(
     target_total: i32,
     milestones: Vec<(i32, String)>,
 ) -> CmdResult<()> {
-    let (days_opt, total_opt) = if is_consecutive {
-        (None, None)
-    } else {
-        (Some(target_days), Some(target_total))
-    };
     Ok(RewardsService::update_streak_reward_with_milestones(
         &db,
         id,
         habit_id,
         is_consecutive,
-        days_opt,
-        total_opt,
+        target_days,
+        target_total,
         milestones,
     )?)
 }

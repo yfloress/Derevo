@@ -17,6 +17,27 @@
 
 use serde::{Deserialize, Serialize};
 
+/// How often a habit is expected. Stored across three columns rather than one
+/// blob so the schedule stays queryable from SQL.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Schedule {
+    /// Every day.
+    Daily,
+    /// Only these weekdays, Sunday being 0 — the same numbering as
+    /// `Date.getDay()` in the frontend.
+    Weekdays(Vec<u32>),
+    /// Any days, as long as the week reaches this many.
+    TimesPerWeek(i32),
+}
+
+pub const SCHEDULE_DAILY: &str = "daily";
+pub const SCHEDULE_WEEKDAYS: &str = "weekdays";
+pub const SCHEDULE_TIMES_PER_WEEK: &str = "times_per_week";
+
+fn default_schedule_kind() -> String {
+    SCHEDULE_DAILY.to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Habit {
     pub id: String,
@@ -28,6 +49,42 @@ pub struct Habit {
     pub archived: bool,
     /// Local time of day as "HH:MM", or None for no reminder.
     pub reminder_time: Option<String>,
+    // Defaulted per field so a backup written before schedules existed still
+    // loads, as a daily habit.
+    #[serde(default = "default_schedule_kind")]
+    pub schedule_kind: String,
+    /// Comma-separated weekday numbers, e.g. "1,3,5". Only for `weekdays`.
+    #[serde(default)]
+    pub schedule_days: Option<String>,
+    /// Only for `times_per_week`.
+    #[serde(default)]
+    pub target_per_period: Option<i32>,
+}
+
+impl Habit {
+    /// Anything unrecognised reads as daily: a habit the app cannot schedule is
+    /// still a habit, and silently hiding it from the grid would be worse.
+    pub fn schedule(&self) -> Schedule {
+        match self.schedule_kind.as_str() {
+            SCHEDULE_WEEKDAYS => Schedule::Weekdays(parse_days(self.schedule_days.as_deref())),
+            SCHEDULE_TIMES_PER_WEEK => {
+                Schedule::TimesPerWeek(self.target_per_period.unwrap_or(1).max(1))
+            }
+            _ => Schedule::Daily,
+        }
+    }
+}
+
+fn parse_days(raw: Option<&str>) -> Vec<u32> {
+    let mut days: Vec<u32> = raw
+        .unwrap_or("")
+        .split(',')
+        .filter_map(|part| part.trim().parse::<u32>().ok())
+        .filter(|day| *day < 7)
+        .collect();
+    days.sort_unstable();
+    days.dedup();
+    days
 }
 
 impl Habit {
@@ -48,6 +105,9 @@ impl Habit {
             created_at,
             archived: false,
             reminder_time: None,
+            schedule_kind: default_schedule_kind(),
+            schedule_days: None,
+            target_per_period: None,
         }
     }
 }

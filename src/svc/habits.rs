@@ -17,32 +17,63 @@
 
 use crate::db::Database;
 use crate::error::{AppError, DbError};
-use crate::models::{Habit, HabitLog};
+use crate::models::{Habit, HabitLog, SCHEDULE_DAILY, SCHEDULE_TIMES_PER_WEEK, SCHEDULE_WEEKDAYS};
 use uuid::Uuid;
 
 /// Used when a habit is created without a category.
 pub const DEFAULT_CATEGORY: &str = "general";
 
+/// What the caller says about how often the habit is expected. Validated into
+/// the three columns the table stores.
+#[derive(Debug, Clone)]
+pub struct ScheduleInput {
+    pub kind: String,
+    /// Weekday numbers, Sunday being 0. Only read for `weekdays`.
+    pub days: Vec<u32>,
+    /// Only read for `times_per_week`.
+    pub target_per_period: Option<i32>,
+}
+
+impl Default for ScheduleInput {
+    fn default() -> Self {
+        ScheduleInput {
+            kind: SCHEDULE_DAILY.to_string(),
+            days: Vec::new(),
+            target_per_period: None,
+        }
+    }
+}
+
+/// Everything the habit form sends. One struct rather than a row of positional
+/// arguments: the two calls that take it were up to eight parameters, where a
+/// swapped colour and category would have compiled fine.
+#[derive(Debug, Clone, Default)]
+pub struct HabitInput {
+    pub name: String,
+    pub description: Option<String>,
+    pub color: String,
+    pub category: String,
+    pub reminder_time: Option<String>,
+    pub schedule: ScheduleInput,
+}
+
 pub struct HabitService;
 
 impl HabitService {
-    pub fn create_habit(
-        db: &Database,
-        name: String,
-        description: Option<String>,
-        color: String,
-        category: String,
-        reminder_time: Option<String>,
-    ) -> Result<String, AppError> {
-        let name = validate_name(name)?;
-        let color = validate_color(color)?;
-        let reminder_time = validate_reminder(reminder_time)?;
-        let category = canonical_category(db, &category)?;
+    pub fn create_habit(db: &Database, input: HabitInput) -> Result<String, AppError> {
+        let name = validate_name(input.name)?;
+        let color = validate_color(input.color)?;
+        let reminder_time = validate_reminder(input.reminder_time)?;
+        let (kind, days, target) = validate_schedule(input.schedule)?;
+        let category = canonical_category(db, &input.category)?;
 
         let id = Uuid::new_v4().to_string();
         let now = chrono::Local::now().to_rfc3339();
-        let mut habit = Habit::new(id.clone(), name, description, color, category, now);
+        let mut habit = Habit::new(id.clone(), name, input.description, color, category, now);
         habit.reminder_time = reminder_time;
+        habit.schedule_kind = kind;
+        habit.schedule_days = days;
+        habit.target_per_period = target;
         db.create_habit(&habit)?;
         Ok(id)
     }
@@ -59,27 +90,23 @@ impl HabitService {
         db.get_categories()
     }
 
-    pub fn update_habit(
-        db: &Database,
-        id: String,
-        name: String,
-        description: Option<String>,
-        color: String,
-        category: String,
-        reminder_time: Option<String>,
-    ) -> Result<(), AppError> {
-        let name = validate_name(name)?;
-        let color = validate_color(color)?;
-        let reminder_time = validate_reminder(reminder_time)?;
-        let category = canonical_category(db, &category)?;
+    pub fn update_habit(db: &Database, id: String, input: HabitInput) -> Result<(), AppError> {
+        let name = validate_name(input.name)?;
+        let color = validate_color(input.color)?;
+        let reminder_time = validate_reminder(input.reminder_time)?;
+        let (kind, days, target) = validate_schedule(input.schedule)?;
+        let category = canonical_category(db, &input.category)?;
 
         match db.get_habit(&id)? {
             Some(mut habit) => {
                 habit.name = name;
-                habit.description = description;
+                habit.description = input.description;
                 habit.color = color;
                 habit.category = category;
                 habit.reminder_time = reminder_time;
+                habit.schedule_kind = kind;
+                habit.schedule_days = days;
+                habit.target_per_period = target;
                 db.update_habit(&habit)?;
                 Ok(())
             }
@@ -163,6 +190,41 @@ fn validate_reminder(reminder: Option<String>) -> Result<Option<String>, AppErro
         None => Err(AppError::Validation(format!(
             "Invalid reminder time: {raw}"
         ))),
+    }
+}
+
+/// Turns a schedule request into the three stored columns. A `weekdays` habit
+/// with no days would never come due again, and a weekly target below one would
+/// be satisfied by doing nothing, so both are refused rather than corrected.
+type StoredSchedule = (String, Option<String>, Option<i32>);
+
+fn validate_schedule(schedule: ScheduleInput) -> Result<StoredSchedule, AppError> {
+    match schedule.kind.as_str() {
+        SCHEDULE_WEEKDAYS => {
+            let mut days: Vec<u32> = schedule.days.into_iter().filter(|d| *d < 7).collect();
+            days.sort_unstable();
+            days.dedup();
+            if days.is_empty() {
+                return Err(AppError::Validation("Pick at least one weekday".into()));
+            }
+            let joined = days
+                .iter()
+                .map(|d| d.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            Ok((SCHEDULE_WEEKDAYS.to_string(), Some(joined), None))
+        }
+        SCHEDULE_TIMES_PER_WEEK => {
+            let target = schedule.target_per_period.unwrap_or(0);
+            if !(1..=7).contains(&target) {
+                return Err(AppError::Validation(
+                    "A weekly target has to be between 1 and 7".into(),
+                ));
+            }
+            Ok((SCHEDULE_TIMES_PER_WEEK.to_string(), None, Some(target)))
+        }
+        SCHEDULE_DAILY => Ok((SCHEDULE_DAILY.to_string(), None, None)),
+        other => Err(AppError::Validation(format!("Unknown schedule: {other}"))),
     }
 }
 

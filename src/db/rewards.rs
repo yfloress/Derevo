@@ -17,7 +17,10 @@
 
 use crate::error::DbError;
 use crate::models::{Achievement, Checkpoint, Goal, Milestone, StreakReward};
+use crate::streaks;
+use chrono::NaiveDate;
 use rusqlite::{Connection, params};
+use std::collections::BTreeSet;
 
 impl super::Database {
     // ── Streak Rewards ──
@@ -506,28 +509,30 @@ impl super::Database {
         Self::calculate_consecutive_streak_on(&conn, habit_id)
     }
 
+    /// Reads the habit's schedule and its dates once, then hands both to
+    /// [`crate::streaks`]. The previous version fired one query per day walked.
     fn calculate_consecutive_streak_on(conn: &Connection, habit_id: &str) -> Result<i32, DbError> {
+        let Some(habit) = Self::get_habit_on(conn, habit_id)? else {
+            return Ok(0);
+        };
+        let dates = Self::habit_log_dates_on(conn, habit_id)?;
         let today = chrono::Local::now().date_naive();
-        let mut streak = 0;
-        let mut check_date = today;
-        loop {
-            let date_str = check_date.format("%Y-%m-%d").to_string();
-            if Self::habit_log_exists_on(conn, habit_id, &date_str)? {
-                streak += 1;
-                check_date = match check_date.pred_opt() {
-                    Some(d) => d,
-                    None => break,
-                };
-            } else if check_date == today {
-                check_date = match check_date.pred_opt() {
-                    Some(d) => d,
-                    None => break,
-                };
-            } else {
-                break;
-            }
-        }
-        Ok(streak)
+        Ok(streaks::current_streak(&habit.schedule(), &dates, today))
+    }
+
+    /// Every date the habit was completed on, ready for the streak walk.
+    pub(crate) fn habit_log_dates_on(
+        conn: &Connection,
+        habit_id: &str,
+    ) -> Result<BTreeSet<NaiveDate>, DbError> {
+        let mut stmt = conn.prepare("SELECT completed_date FROM habit_logs WHERE habit_id = ?1")?;
+        let dates = stmt
+            .query_map(params![habit_id], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .filter_map(|raw| NaiveDate::parse_from_str(&raw, "%Y-%m-%d").ok())
+            .collect();
+        Ok(dates)
     }
 
     fn calculate_accumulative_progress(&self, habit_id: &str, days: i32) -> Result<i32, DbError> {

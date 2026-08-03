@@ -39,7 +39,8 @@
   let rewardTargetTotal = $state('')
 
   function rewardProgress(r: StreakRewardDto): number {
-    const target = r.target_days ?? r.target_total ?? 1
+    // Rewards created before target_days was kept for both modes have none.
+    const target = r.target_days ?? 0
     if (target <= 0) return 0
     return Math.min(100, Math.round((r.current_progress / target) * 100))
   }
@@ -128,7 +129,10 @@
       <div class="reward-progress">
         <div class="reward-progress-text">
           <span>{i18n.t('habits-progress', 'Progress')}</span>
-          <span class="reward-progress-count">{reward.current_progress} / {reward.target_days ?? reward.target_total ?? '?'} {i18n.t('habits-days-label', 'days')}</span>
+          <span class="reward-progress-count">
+            {reward.current_progress} / {reward.target_days ?? '?'}
+            {reward.is_consecutive ? i18n.t('habits-days-label', 'days') : i18n.t('habits-times-label')}
+          </span>
         </div>
         <div class="progress-track">
           <div class="progress-fill" style="width: {rewardProgress(reward)}%"></div>
@@ -161,18 +165,33 @@
             {/each}
           </select>
         </label>
+        <div class="mode-field">
+          <span>{i18n.t('habits-reward-mode')}</span>
+          <label class="mode-option" class:selected={rewardConsecutive}>
+            <input type="radio" value={true} bind:group={rewardConsecutive} />
+            <span class="mode-text">
+              {i18n.t('habits-reward-mode-streak')}
+              <span class="mode-hint">{i18n.t('habits-reward-mode-streak-hint')}</span>
+            </span>
+          </label>
+          <label class="mode-option" class:selected={!rewardConsecutive}>
+            <input type="radio" value={false} bind:group={rewardConsecutive} />
+            <span class="mode-text">
+              {i18n.t('habits-reward-mode-total')}
+              <span class="mode-hint">{i18n.t('habits-reward-mode-total-hint')}</span>
+            </span>
+          </label>
+        </div>
         <label>
-          <input type="checkbox" bind:checked={rewardConsecutive} />
-          <span>{i18n.t('habits-consecutive-days', 'Consecutive days (vs Accumulative)')}</span>
+          {rewardConsecutive ? i18n.t('habits-target-streak-days') : i18n.t('habits-target-count')}
+          <input type="number" min="1" bind:value={rewardTargetDays} placeholder={i18n.t('habits-target-days-placeholder', 'e.g., 7, 30, 100')} />
         </label>
-        <label>
-          {i18n.t('habits-target-days', 'Target Days')}
-          <input type="number" bind:value={rewardTargetDays} placeholder={i18n.t('habits-target-days-placeholder', 'e.g., 7, 30, 100')} />
-        </label>
-        <label>
-          {i18n.t('habits-target-total', 'Target Total (optional)')}
-          <input type="number" bind:value={rewardTargetTotal} placeholder={i18n.t('habits-target-total-placeholder', 'Alternative count metric')} />
-        </label>
+        {#if !rewardConsecutive}
+          <label>
+            {i18n.t('habits-window-days')}
+            <input type="number" min="1" bind:value={rewardTargetTotal} placeholder="30" />
+          </label>
+        {/if}
       </div>
       <div class="modal-actions">
         <button class="secondary-btn" onclick={() => showAddReward = false}>{i18n.t('habits-cancel', 'Cancel')}</button>

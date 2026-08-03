@@ -79,10 +79,23 @@
   let showAddGoal = $state(false)
   let editingHabit = $state<HabitDto | null>(null)
 
+  /**
+   * `selectedHabit` holds an object from the load it was picked in. Every
+   * refetch builds new ones, so without this the summary card — and the edit
+   * form it opens — keep showing the values from before the change.
+   */
+  function syncSelectedHabit() {
+    if (!selectedHabit) return
+    const fresh = habitsData?.habits.find((h) => h.id === selectedHabit!.id) ?? null
+    selectedHabit = fresh
+    if (!fresh) summary = null
+  }
+
   async function load() {
     loading = true
     try {
       habitsData = await habitsApi.fetchHabits(month, year)
+      syncSelectedHabit()
       syncWeekIndex()
       heatmap = await habitsApi.fetchHeatmap(heatmapYear)
       analytics = await habitsApi.fetchHabitAnalytics()
@@ -153,6 +166,7 @@
       habitsData = newHabits
       heatmap = newHeatmap
       analytics = newAnalytics
+      syncSelectedHabit()
       if (selectedHabit?.id === habitId) {
         summary = await habitsApi.fetchHabitSummary(habitId)
       }

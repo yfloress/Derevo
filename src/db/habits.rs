@@ -29,8 +29,9 @@ impl super::Database {
     pub(crate) fn create_habit_on(conn: &Connection, habit: &Habit) -> Result<(), DbError> {
         conn.execute(
             "INSERT INTO habits
-                (id, name, description, color, category, created_at, archived, reminder_time)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                (id, name, description, color, category, created_at, archived, reminder_time,
+                 schedule_kind, schedule_days, target_per_period)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
                 &habit.id,
                 &habit.name,
@@ -39,11 +40,19 @@ impl super::Database {
                 &habit.category,
                 &habit.created_at,
                 habit.archived as i32,
-                &habit.reminder_time
+                &habit.reminder_time,
+                &habit.schedule_kind,
+                &habit.schedule_days,
+                habit.target_per_period
             ],
         )?;
         Ok(())
     }
+
+    /// Every habit query selects the same columns in this order.
+    pub(crate) const HABIT_COLUMNS: &'static str =
+        "id, name, description, color, category, created_at, archived, reminder_time,
+         schedule_kind, schedule_days, target_per_period";
 
     fn row_to_habit(row: &rusqlite::Row<'_>) -> rusqlite::Result<Habit> {
         Ok(Habit {
@@ -55,15 +64,18 @@ impl super::Database {
             created_at: row.get(5)?,
             archived: row.get::<_, i32>(6)? != 0,
             reminder_time: row.get(7)?,
+            schedule_kind: row.get(8)?,
+            schedule_days: row.get(9)?,
+            target_per_period: row.get(10)?,
         })
     }
 
     pub fn get_habits(&self) -> Result<Vec<Habit>, DbError> {
         let conn = self.read()?;
-        let mut stmt = conn.prepare(
-            "SELECT id, name, description, color, category, created_at, archived, reminder_time
-             FROM habits WHERE archived = 0 ORDER BY created_at ASC",
-        )?;
+        let mut stmt = conn.prepare(&format!(
+            "SELECT {} FROM habits WHERE archived = 0 ORDER BY created_at ASC",
+            Self::HABIT_COLUMNS
+        ))?;
         let habits = stmt
             .query_map([], Self::row_to_habit)?
             .collect::<Result<Vec<_>, _>>()?;
@@ -76,7 +88,8 @@ impl super::Database {
         let conn = self.read()?;
         let mut stmt = conn.prepare(
             "SELECT h.id, h.name, h.description, h.color, h.category, h.created_at,
-                    h.archived, h.reminder_time, COUNT(l.id)
+                    h.archived, h.reminder_time, h.schedule_kind, h.schedule_days,
+                    h.target_per_period, COUNT(l.id)
              FROM habits h
              LEFT JOIN habit_logs l ON l.habit_id = h.id
              WHERE h.archived = 1
@@ -85,7 +98,7 @@ impl super::Database {
         )?;
         let rows = stmt
             .query_map([], |row| {
-                Ok((Self::row_to_habit(row)?, row.get::<_, i32>(8)?))
+                Ok((Self::row_to_habit(row)?, row.get::<_, i32>(11)?))
             })?
             .collect::<Result<Vec<_>, _>>()?;
         Ok(rows)
@@ -132,8 +145,7 @@ impl super::Database {
 
     pub(crate) fn get_habit_on(conn: &Connection, id: &str) -> Result<Option<Habit>, DbError> {
         let result = conn.query_row(
-            "SELECT id, name, description, color, category, created_at, archived, reminder_time
-             FROM habits WHERE id = ?1",
+            &format!("SELECT {} FROM habits WHERE id = ?1", Self::HABIT_COLUMNS),
             params![id],
             Self::row_to_habit,
         );
@@ -148,14 +160,18 @@ impl super::Database {
         let conn = self.write();
         conn.execute(
             "UPDATE habits
-             SET name = ?1, description = ?2, color = ?3, category = ?4, reminder_time = ?5
-             WHERE id = ?6",
+             SET name = ?1, description = ?2, color = ?3, category = ?4, reminder_time = ?5,
+                 schedule_kind = ?6, schedule_days = ?7, target_per_period = ?8
+             WHERE id = ?9",
             params![
                 &habit.name,
                 &habit.description,
                 &habit.color,
                 &habit.category,
                 &habit.reminder_time,
+                &habit.schedule_kind,
+                &habit.schedule_days,
+                habit.target_per_period,
                 &habit.id
             ],
         )?;

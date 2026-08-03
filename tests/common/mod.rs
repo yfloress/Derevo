@@ -16,6 +16,7 @@
 //
 
 use derevo::db::Database;
+use derevo::svc::habits::{HabitInput, ScheduleInput};
 use std::ops::Deref;
 use std::path::PathBuf;
 
@@ -48,6 +49,24 @@ impl Drop for TestDb {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.dir);
     }
+}
+
+/// A valid habit form with everything the test does not care about filled in.
+/// Override the rest with struct update syntax.
+#[allow(dead_code)]
+pub fn habit_input(name: &str, category: &str) -> HabitInput {
+    HabitInput {
+        name: name.to_string(),
+        color: "#8b5cf6".to_string(),
+        category: category.to_string(),
+        ..Default::default()
+    }
+}
+
+/// A schedule of every day, which is what most tests want.
+#[allow(dead_code)]
+pub fn daily() -> ScheduleInput {
+    ScheduleInput::default()
 }
 
 /// `days_ago(0)` is today. Matches the format stored in `habit_logs`.

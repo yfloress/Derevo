@@ -87,10 +87,15 @@
   --card-bg-solid: #0a110d;
   --card-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   --card-accent-line: linear-gradient(90deg, transparent 0%, rgba(52, 211, 153, 0.4) 30%, rgba(52, 211, 153, 0.4) 70%, transparent 100%);
+  /* Halo around a ticked day. White reads on the dark theme only. */
+  --cell-glow: 0 0 8px rgba(255, 255, 255, 0.1);
 }
 
 .light-mode {
   --bg-base: #f3faf6;
+  /* body paints --bg-gradient over --bg-base, so leaving this one out kept the
+     page dark while every text colour flipped to near-black. */
+  --bg-gradient: linear-gradient(135deg, #f3faf6 0%, #eaf5ef 40%, #e4f2ea 100%);
   --glass: rgba(255, 255, 255, 0.65);
   --glass-hover: rgba(5, 150, 105, 0.06);
   --glass-active: rgba(5, 150, 105, 0.1);
@@ -128,6 +133,7 @@
   --card-bg-solid: #edf7f1;
   --card-shadow: 0 4px 20px rgba(15, 110, 80, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6);
   --card-accent-line: linear-gradient(90deg, transparent 0%, rgba(5, 150, 105, 0.4) 30%, rgba(5, 150, 105, 0.4) 70%, transparent 100%);
+  --cell-glow: 0 0 8px rgba(15, 110, 80, 0.18);
 }
 
 body {
@@ -531,6 +537,35 @@ select option {
 .progress-card { margin-bottom: 24px; }
 .insight { font-size: 0.85rem; color: var(--text-secondary); margin: 4px 0; }
 
+/* A labelled choice with a line of explanation under it. Used by the habit form
+   and the reward form, so it cannot live scoped inside either. */
+.mode-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.mode-option {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.mode-option:hover { background: var(--glass-hover); }
+.mode-option.selected { border-color: var(--accent-border); background: var(--accent-bg); }
+.mode-option input { accent-color: var(--accent); margin-top: 2px; cursor: pointer; }
+.mode-text { display: flex; flex-direction: column; gap: 2px; color: var(--text-primary); }
+.mode-hint { font-size: 0.72rem; color: var(--text-tertiary); }
+
 .streak-pill {
   display: inline-flex;
   align-items: center;
@@ -541,7 +576,7 @@ select option {
   border: 1px solid currentColor;
   font-size: 0.68rem;
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--glass);
 }
 
 .streak-pill svg { width: 10px; height: 10px; }

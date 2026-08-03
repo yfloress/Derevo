@@ -41,7 +41,8 @@ impl super::Database {
 
         let habits = conn
             .prepare(
-                "SELECT id, name, description, color, category, created_at, archived, reminder_time
+                "SELECT id, name, description, color, category, created_at, archived,
+                        reminder_time, schedule_kind, schedule_days, target_per_period
                  FROM habits ORDER BY created_at ASC",
             )?
             .query_map([], |row| {
@@ -54,6 +55,9 @@ impl super::Database {
                     created_at: row.get(5)?,
                     archived: row.get::<_, i32>(6)? != 0,
                     reminder_time: row.get(7)?,
+                    schedule_kind: row.get(8)?,
+                    schedule_days: row.get(9)?,
+                    target_per_period: row.get(10)?,
                 })
             })?
             .collect::<Result<Vec<_>, _>>()?;
@@ -195,8 +199,9 @@ fn insert_all(conn: &Connection, data: &BackupData) -> Result<(), DbError> {
     for habit in &data.habits {
         conn.execute(
             "INSERT INTO habits
-                (id, name, description, color, category, created_at, archived, reminder_time)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                (id, name, description, color, category, created_at, archived, reminder_time,
+                 schedule_kind, schedule_days, target_per_period)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
             params![
                 &habit.id,
                 &habit.name,
@@ -205,7 +210,10 @@ fn insert_all(conn: &Connection, data: &BackupData) -> Result<(), DbError> {
                 &habit.category,
                 &habit.created_at,
                 habit.archived as i32,
-                &habit.reminder_time
+                &habit.reminder_time,
+                &habit.schedule_kind,
+                &habit.schedule_days,
+                habit.target_per_period
             ],
         )?;
     }

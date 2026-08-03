@@ -15,6 +15,7 @@
      along with this program.  If not, see <https://www.gnu.org/licenses/agpl-3.0.html>. -->
 
 <script lang="ts">
+  import { isDueOnWeekday } from '../../lib/types/habits'
   import type { HabitDto } from '../../lib/types/habits'
 
   interface Props {
@@ -77,13 +78,15 @@
         {/if}
       </button>
       <div class="wk-cells">
-        {#each week as d}
+        {#each week as d, slot}
           {#if d === null}
             <span class="wk-cell empty"></span>
           {:else}
+            <!-- The week is Sunday-aligned, so the slot index is the weekday. -->
             <button
               class="wk-cell"
               class:done={habit.days[d]}
+              class:off-day={!isDueOnWeekday(habit, slot)}
               class:is-today={d === todayDay}
               style={habit.days[d] ? `background: ${habit.color}; border-color: ${habit.color}` : ''}
               onclick={() => ontoggle(habit.id, d)}
@@ -147,7 +150,8 @@
     transition: transform 0.1s ease, border-color 0.15s, background 0.15s;
   }
   .wk-cell.empty { background: none; border: none; cursor: default; }
-  .wk-cell.done { box-shadow: 0 0 8px rgba(255, 255, 255, 0.1); }
+  .wk-cell.done { box-shadow: var(--cell-glow); }
+  .wk-cell.off-day:not(.done) { background: none; border-style: dashed; opacity: 0.4; }
   .wk-cell.is-today:not(.done) { box-shadow: 0 0 0 1px var(--accent) inset; }
   .wk-cell:not(.empty):active { transform: scale(0.93); }
 </style>

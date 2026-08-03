@@ -29,7 +29,29 @@ export interface HabitDto {
   category: string
   /** Local time as "HH:MM", or null when the habit has no reminder. */
   reminder_time: string | null
+  schedule_kind: ScheduleKind
+  /** Weekday numbers, Sunday being 0 — the same numbering as Date.getDay(). */
+  schedule_days: number[]
+  target_per_period: number | null
   days: boolean[]
+}
+
+export type ScheduleKind = 'daily' | 'weekdays' | 'times_per_week'
+
+/**
+ * Whether the habit is expected on a given weekday (0 = Sunday). Mirrors
+ * `streaks::is_due_on` in Rust: a weekly target has no fixed days, so every day
+ * is a chance to make progress.
+ */
+export function isDueOnWeekday(habit: HabitDto, weekday: number): boolean {
+  if (habit.schedule_kind !== 'weekdays') return true
+  return habit.schedule_days.includes(weekday)
+}
+
+export interface ScheduleInput {
+  kind: ScheduleKind
+  days: number[]
+  target_per_period: number | null
 }
 
 export interface ArchivedHabitDto {

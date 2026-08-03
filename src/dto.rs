@@ -49,6 +49,11 @@ pub struct HabitDto {
     pub color: String,
     pub category: String,
     pub reminder_time: Option<String>,
+    pub schedule_kind: String,
+    /// Weekday numbers, Sunday being 0 — matches `Date.getDay()`, so the grid
+    /// can grey out the days this habit is not due on without asking again.
+    pub schedule_days: Vec<u32>,
+    pub target_per_period: Option<i32>,
     pub days: Vec<bool>,
 }
 

@@ -53,10 +53,15 @@ pub fn compute_habit_analytics(db: &Database, days: i32) -> Result<HabitAnalytic
 
     let active_ids: std::collections::HashSet<&str> =
         habits.iter().map(|h| h.id.as_str()).collect();
-    let habit_start_dates: Vec<NaiveDate> = habits
+    // A habit only counts as available on a day its schedule asks for, and only
+    // once it exists — otherwise a Monday-only habit drags every other weekday
+    // down towards zero.
+    let habit_windows: Vec<(NaiveDate, crate::models::Schedule)> = habits
         .iter()
         .filter_map(|h| {
-            NaiveDate::parse_from_str(h.created_at.get(..10).unwrap_or(""), "%Y-%m-%d").ok()
+            NaiveDate::parse_from_str(h.created_at.get(..10).unwrap_or(""), "%Y-%m-%d")
+                .ok()
+                .map(|created| (created, h.schedule()))
         })
         .collect();
 
@@ -66,7 +71,12 @@ pub fn compute_habit_analytics(db: &Database, days: i32) -> Result<HabitAnalytic
     let mut cursor = start_date;
     loop {
         let weekday_idx = cursor.weekday().num_days_from_monday() as usize;
-        let available = habit_start_dates.iter().filter(|&&c| c <= cursor).count() as i32;
+        let available = habit_windows
+            .iter()
+            .filter(|(created, schedule)| {
+                *created <= cursor && crate::streaks::is_due_on(schedule, cursor)
+            })
+            .count() as i32;
         weekday_available[weekday_idx] += available;
         cursor = match cursor.succ_opt() {
             Some(c) => c,

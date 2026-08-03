@@ -17,19 +17,11 @@
 
 mod common;
 
-use common::{TestDb, days_ago};
+use common::{TestDb, days_ago, habit_input};
 use derevo::svc::{HabitService, RewardsService};
 
 fn habit(db: &TestDb, name: &str) -> String {
-    HabitService::create_habit(
-        db,
-        name.to_string(),
-        None,
-        "#8b5cf6".to_string(),
-        "body".to_string(),
-        None,
-    )
-    .expect("habit created")
+    HabitService::create_habit(db, habit_input(name, "body")).expect("habit created")
 }
 
 fn complete(db: &TestDb, habit_id: &str, days: &[i64]) {
@@ -88,7 +80,7 @@ fn milestones_unlock_once_the_streak_reaches_them() {
     let db = TestDb::new();
     let id = habit(&db, "Walk");
     let reward =
-        RewardsService::create_streak_reward(&db, id.clone(), true, None, None).expect("reward");
+        RewardsService::create_streak_reward(&db, id.clone(), true, 30, 0).expect("reward");
     RewardsService::add_milestone(&db, reward.clone(), 2, "Coffee".to_string()).unwrap();
     RewardsService::add_milestone(&db, reward.clone(), 5, "Book".to_string()).unwrap();
 
@@ -109,7 +101,7 @@ fn an_unlocked_milestone_is_not_unlocked_twice() {
     let db = TestDb::new();
     let id = habit(&db, "Walk");
     let reward =
-        RewardsService::create_streak_reward(&db, id.clone(), true, None, None).expect("reward");
+        RewardsService::create_streak_reward(&db, id.clone(), true, 30, 0).expect("reward");
     RewardsService::add_milestone(&db, reward.clone(), 1, "Coffee".to_string()).unwrap();
     complete(&db, &id, &[0]);
 
@@ -131,7 +123,7 @@ fn editing_a_reward_keeps_the_milestones_that_were_already_unlocked() {
     let db = TestDb::new();
     let id = habit(&db, "Walk");
     let reward =
-        RewardsService::create_streak_reward(&db, id.clone(), true, None, None).expect("reward");
+        RewardsService::create_streak_reward(&db, id.clone(), true, 30, 0).expect("reward");
     RewardsService::add_milestone(&db, reward.clone(), 2, "Coffee".to_string()).unwrap();
     complete(&db, &id, &[0, 1]);
     RewardsService::check_and_unlock_milestones(&db, &reward).unwrap();
@@ -144,8 +136,8 @@ fn editing_a_reward_keeps_the_milestones_that_were_already_unlocked() {
         reward.clone(),
         id,
         true,
-        None,
-        None,
+        30,
+        0,
         vec![(2, "Better coffee".to_string())],
     )
     .expect("reward updated");
@@ -157,6 +149,54 @@ fn editing_a_reward_keeps_the_milestones_that_were_already_unlocked() {
     assert_eq!(
         milestones[0].unlocked_at, unlocked_at,
         "the original unlock date should be preserved"
+    );
+}
+
+/// Consecutive rewards used to be stored with no target at all, which left the
+/// progress bar dividing by nothing and showing "3 / ?".
+#[test]
+fn a_consecutive_reward_keeps_its_target() {
+    let db = TestDb::new();
+    let id = habit(&db, "Walk");
+    let reward = RewardsService::create_streak_reward(&db, id, true, 30, 0).expect("reward");
+
+    let stored = db.get_streak_reward(&reward).unwrap().unwrap();
+    assert_eq!(stored.target_days, Some(30));
+    assert_eq!(stored.target_total, None, "the window is accumulative-only");
+}
+
+#[test]
+fn an_accumulative_reward_keeps_both_the_target_and_the_window() {
+    let db = TestDb::new();
+    let id = habit(&db, "Walk");
+    let reward = RewardsService::create_streak_reward(&db, id, false, 12, 21).expect("reward");
+
+    let stored = db.get_streak_reward(&reward).unwrap().unwrap();
+    assert_eq!(stored.target_days, Some(12));
+    assert_eq!(stored.target_total, Some(21));
+}
+
+#[test]
+fn a_reward_target_below_one_is_refused() {
+    let db = TestDb::new();
+    let id = habit(&db, "Walk");
+    let err = RewardsService::create_streak_reward(&db, id, true, 0, 0).unwrap_err();
+    assert_eq!(err.kind(), "validation");
+}
+
+#[test]
+fn an_empty_window_falls_back_to_the_default() {
+    let db = TestDb::new();
+    let id = habit(&db, "Walk");
+    complete(&db, &id, &[0, 5, 40]);
+    let reward = RewardsService::create_streak_reward(&db, id, false, 10, 0).expect("reward");
+
+    let stored = db.get_streak_reward(&reward).unwrap().unwrap();
+    // None means the 30-day default, so the 40-day-old entry stays out.
+    assert_eq!(stored.target_total, None);
+    assert_eq!(
+        RewardsService::get_streak_progress(&db, &stored).unwrap(),
+        2
     );
 }
 
@@ -207,7 +247,7 @@ fn completing_a_goal_creates_exactly_one_achievement() {
 fn deleting_a_habit_takes_its_rewards_with_it() {
     let db = TestDb::new();
     let id = habit(&db, "Walk");
-    RewardsService::create_streak_reward(&db, id.clone(), true, None, None).expect("reward");
+    RewardsService::create_streak_reward(&db, id.clone(), true, 30, 0).expect("reward");
 
     HabitService::delete_habit(&db, id).unwrap();
 

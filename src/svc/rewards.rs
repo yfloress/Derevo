@@ -16,7 +16,7 @@
 //
 
 use crate::db::Database;
-use crate::error::DbError;
+use crate::error::{AppError, DbError};
 use crate::models::{Achievement, Checkpoint, Goal, Milestone, StreakReward};
 use uuid::Uuid;
 
@@ -29,9 +29,10 @@ impl RewardsService {
         db: &Database,
         habit_id: String,
         is_consecutive: bool,
-        target_days: Option<i32>,
-        target_total: Option<i32>,
-    ) -> Result<String, DbError> {
+        target: i32,
+        window_days: i32,
+    ) -> Result<String, AppError> {
+        let (target_days, target_total) = reward_targets(is_consecutive, target, window_days)?;
         let id = Uuid::new_v4().to_string();
         let reward = StreakReward::new(
             id.clone(),
@@ -64,10 +65,11 @@ impl RewardsService {
         id: String,
         habit_id: String,
         is_consecutive: bool,
-        target_days: Option<i32>,
-        target_total: Option<i32>,
+        target: i32,
+        window_days: i32,
         milestones: Vec<(i32, String)>,
-    ) -> Result<(), DbError> {
+    ) -> Result<(), AppError> {
+        let (target_days, target_total) = reward_targets(is_consecutive, target, window_days)?;
         db.with_transaction(|conn| {
             let existing = Database::get_milestones_on(conn, &id)?;
             let reward = StreakReward::new(
@@ -109,6 +111,7 @@ impl RewardsService {
             }
             Ok(())
         })
+        .map_err(AppError::Database)
     }
 
     pub fn get_streak_progress(db: &Database, reward: &StreakReward) -> Result<i32, DbError> {
@@ -351,6 +354,35 @@ impl RewardsService {
     pub fn get_achievements(db: &Database) -> Result<Vec<Achievement>, DbError> {
         db.get_achievements()
     }
+}
+
+/// Splits the two numbers a reward carries.
+///
+/// `target_days` is what the progress bar counts up to and is meaningful in both
+/// modes — it used to be dropped for consecutive rewards, which left the bar
+/// dividing by nothing and sitting at 100% from day one.
+///
+/// `target_total` is only the look-back window of the accumulative mode, in
+/// days; None there means the default of 30.
+fn reward_targets(
+    is_consecutive: bool,
+    target: i32,
+    window_days: i32,
+) -> Result<(Option<i32>, Option<i32>), AppError> {
+    if target < 1 {
+        return Err(AppError::Validation(
+            "The reward target must be at least 1".into(),
+        ));
+    }
+    if !is_consecutive && window_days < 0 {
+        return Err(AppError::Validation("The window cannot be negative".into()));
+    }
+    let window = if is_consecutive || window_days == 0 {
+        None
+    } else {
+        Some(window_days)
+    };
+    Ok((Some(target), window))
 }
 
 fn create_achievement_internal(

@@ -17,34 +17,19 @@
 
 mod common;
 
-use common::{TestDb, days_ago};
+use common::{TestDb, days_ago, habit_input};
 use derevo::error::AppError;
 use derevo::svc::HabitService;
+use derevo::svc::habits::{HabitInput, ScheduleInput};
 
 fn create(db: &TestDb, name: &str, category: &str) -> String {
-    HabitService::create_habit(
-        db,
-        name.to_string(),
-        None,
-        "#8b5cf6".to_string(),
-        category.to_string(),
-        None,
-    )
-    .expect("habit created")
+    HabitService::create_habit(db, habit_input(name, category)).expect("habit created")
 }
 
 #[test]
 fn rejects_a_blank_name() {
     let db = TestDb::new();
-    let err = HabitService::create_habit(
-        &db,
-        "   ".to_string(),
-        None,
-        "#8b5cf6".to_string(),
-        "health".to_string(),
-        None,
-    )
-    .unwrap_err();
+    let err = HabitService::create_habit(&db, habit_input("   ", "health")).unwrap_err();
     assert_eq!(err.kind(), "validation");
 }
 
@@ -54,11 +39,10 @@ fn rejects_a_malformed_colour() {
     for colour in ["8b5cf6", "#8b5cf", "#zzzzzz", ""] {
         let err = HabitService::create_habit(
             &db,
-            "Read".to_string(),
-            None,
-            colour.to_string(),
-            "mind".to_string(),
-            None,
+            HabitInput {
+                color: colour.to_string(),
+                ..habit_input("Read", "mind")
+            },
         )
         .unwrap_err();
         assert_eq!(
@@ -74,11 +58,10 @@ fn normalises_the_reminder_time() {
     let db = TestDb::new();
     let id = HabitService::create_habit(
         &db,
-        "Stretch".to_string(),
-        None,
-        "#8b5cf6".to_string(),
-        "body".to_string(),
-        Some("7:5".to_string()),
+        HabitInput {
+            reminder_time: Some("7:5".to_string()),
+            ..habit_input("Stretch", "body")
+        },
     )
     .expect("habit created");
     let habit = db.get_habit(&id).unwrap().unwrap();
@@ -90,11 +73,10 @@ fn an_empty_reminder_means_no_reminder() {
     let db = TestDb::new();
     let id = HabitService::create_habit(
         &db,
-        "Stretch".to_string(),
-        None,
-        "#8b5cf6".to_string(),
-        "body".to_string(),
-        Some("  ".to_string()),
+        HabitInput {
+            reminder_time: Some("  ".to_string()),
+            ..habit_input("Stretch", "body")
+        },
     )
     .expect("habit created");
     assert_eq!(db.get_habit(&id).unwrap().unwrap().reminder_time, None);
@@ -106,11 +88,10 @@ fn rejects_an_impossible_reminder_time() {
     for time in ["24:00", "12:60", "noon", "12"] {
         let err = HabitService::create_habit(
             &db,
-            "Stretch".to_string(),
-            None,
-            "#8b5cf6".to_string(),
-            "body".to_string(),
-            Some(time.to_string()),
+            HabitInput {
+                reminder_time: Some(time.to_string()),
+                ..habit_input("Stretch", "body")
+            },
         )
         .unwrap_err();
         assert_eq!(err.kind(), "validation", "time {time} should be refused");
@@ -151,16 +132,8 @@ fn editing_a_habit_also_canonicalises_its_category() {
     create(&db, "Walk", "salud");
     let id = create(&db, "Water", "otro");
 
-    HabitService::update_habit(
-        &db,
-        id.clone(),
-        "Water".to_string(),
-        None,
-        "#8b5cf6".to_string(),
-        "SALUD".to_string(),
-        None,
-    )
-    .expect("habit updated");
+    HabitService::update_habit(&db, id.clone(), habit_input("Water", "SALUD"))
+        .expect("habit updated");
 
     assert_eq!(db.get_habit(&id).unwrap().unwrap().category, "salud");
 }
@@ -171,15 +144,119 @@ fn updating_a_habit_that_is_gone_reports_habit_not_found() {
     let err = HabitService::update_habit(
         &db,
         "does-not-exist".to_string(),
-        "Water".to_string(),
-        None,
-        "#8b5cf6".to_string(),
-        "health".to_string(),
-        None,
+        habit_input("Water", "health"),
     )
     .unwrap_err();
     assert_eq!(err.kind(), "habit-not-found");
     assert!(matches!(err, AppError::Database(_)));
+}
+
+#[test]
+fn a_weekday_schedule_is_stored_sorted_and_deduplicated() {
+    let db = TestDb::new();
+    let id = HabitService::create_habit(
+        &db,
+        HabitInput {
+            schedule: ScheduleInput {
+                kind: "weekdays".to_string(),
+                days: vec![5, 1, 3, 1],
+                target_per_period: None,
+            },
+            ..habit_input("Gym", "body")
+        },
+    )
+    .expect("habit created");
+
+    let habit = db.get_habit(&id).unwrap().unwrap();
+    assert_eq!(habit.schedule_days.as_deref(), Some("1,3,5"));
+    assert_eq!(habit.target_per_period, None);
+}
+
+#[test]
+fn a_weekday_schedule_with_no_days_is_refused() {
+    let db = TestDb::new();
+    let err = HabitService::create_habit(
+        &db,
+        HabitInput {
+            schedule: ScheduleInput {
+                kind: "weekdays".to_string(),
+                days: vec![],
+                target_per_period: None,
+            },
+            ..habit_input("Gym", "body")
+        },
+    )
+    .unwrap_err();
+    assert_eq!(err.kind(), "validation");
+}
+
+#[test]
+fn a_weekly_target_outside_one_to_seven_is_refused() {
+    let db = TestDb::new();
+    for target in [0, 8] {
+        let err = HabitService::create_habit(
+            &db,
+            HabitInput {
+                schedule: ScheduleInput {
+                    kind: "times_per_week".to_string(),
+                    days: vec![],
+                    target_per_period: Some(target),
+                },
+                ..habit_input("Gym", "body")
+            },
+        )
+        .unwrap_err();
+        assert_eq!(
+            err.kind(),
+            "validation",
+            "target {target} should be refused"
+        );
+    }
+}
+
+#[test]
+fn an_unknown_schedule_kind_is_refused() {
+    let db = TestDb::new();
+    let err = HabitService::create_habit(
+        &db,
+        HabitInput {
+            schedule: ScheduleInput {
+                kind: "every-full-moon".to_string(),
+                days: vec![],
+                target_per_period: None,
+            },
+            ..habit_input("Gym", "body")
+        },
+    )
+    .unwrap_err();
+    assert_eq!(err.kind(), "validation");
+}
+
+#[test]
+fn switching_a_habit_back_to_daily_clears_the_old_schedule() {
+    let db = TestDb::new();
+    let id = HabitService::create_habit(
+        &db,
+        HabitInput {
+            schedule: ScheduleInput {
+                kind: "times_per_week".to_string(),
+                days: vec![],
+                target_per_period: Some(3),
+            },
+            ..habit_input("Gym", "body")
+        },
+    )
+    .expect("habit created");
+
+    HabitService::update_habit(&db, id.clone(), habit_input("Gym", "body")).expect("habit updated");
+
+    let habit = db.get_habit(&id).unwrap().unwrap();
+    assert_eq!(habit.schedule_kind, "daily");
+    assert_eq!(
+        habit.target_per_period, None,
+        "the old target must not linger"
+    );
+    assert_eq!(habit.schedule_days, None);
 }
 
 #[test]
