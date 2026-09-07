@@ -19,8 +19,8 @@ categories = ["gui", "productivity"]
 chrono = { version = "0.4", features = ["serde"] }
 log = "0.4"
 r2d2 = "0.8"
-r2d2_sqlite = "0.34"
-rusqlite = { version = "0.39", features = ["bundled"] }
+r2d2_sqlite = "0.35"
+rusqlite = { version = "0.40", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
