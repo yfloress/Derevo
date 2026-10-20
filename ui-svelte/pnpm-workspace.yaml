@@ -16,3 +16,6 @@ ignoreScripts: true
 # Tauri runs `pnpm dev` as a non-interactive subprocess, where the purge prompt
 # cannot be answered and the dev run aborts.
 confirmModulesPurge: false
+minimumReleaseAgeExclude:
+  # Renovate security update: vite@8.3.3
+  - vite@8.3.3
